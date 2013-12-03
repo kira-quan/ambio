@@ -33,7 +33,7 @@ class Read:
 		return self.alignment_quality_scores[alignment_index]
 
 	def get_base_quality_score(self, base_index):
-		return self.get_bases_quality_score[base_index]
+		return self.bases_quality_score[base_index]
 
 	def get_position(self):
 		return self. position
