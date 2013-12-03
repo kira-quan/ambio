@@ -7,20 +7,22 @@ from __future__ import division
 from scipy import stats
 from read import Read
 from numpy import arange
+import timeit
 
 def ambio():
 	# VARIABLE DECLARATION
 	reads = [] # a list of the reads from the subject
 
 	# Read in the data passed into the program
-	sample_read = Read("CCGT", ["ACGT", "CCGT"], [0.01, 0.01], [0.79, 0.99, 0.89, 0.99])
+	sample_read = Read("ATATCCCTACCAATCTATCCCCAAAAATTCCCTTATACTCTCTATCTAAT", ["ATATCCCTACCAATCTATCCCCAAAAATTCCCTTATACTCTCTATCTAAT", "ATATCCGTACCAATCTATCCCCAACAATTCCCTTATACTCTCTATCTAAT"], [0.01, 0.01], [0.12117885924899019, 0.33415160102483166, 0.10632170228284443, 0.14686061309953347, 0.36473687807903743, 0.01788901020746836, 0.4556917988559128, 0.05398658415199342, 0.3141159989393558, 0.5188456039136414, 0.09759694223390225, 0.6238380031950486, 0.3518641378282821, 0.044791323688791684, 0.9623702159874176, 0.010160983349749797, 0.8957657921549259, 0.6371182123240026, 0.6692419521899688, 0.9793392110614689, 0.8495260682941772, 0.8060781219027288, 0.7690154226048116, 0.21056506302357447, 0.1139836759312679, 0.9014064122332206, 0.19196431719394835, 0.28746715704141923, 0.9962959228799395, 0.8927351709880836, 0.3583972951261465, 0.7808689587097891, 0.9727105799239993, 0.2927723520315926, 0.4530579140475315, 0.3647337645210673, 0.28903500743577293, 0.8009388450973709, 0.33743469460700337, 0.7943477102002011, 0.0015752540267214288, 0.7880426755460618, 0.27760313914221435, 0.33296403513830775, 0.09086776155049259, 0.41120800537971347, 0.9670421855602295, 0.3672821866743671, 0.23757120448243074, 0.6763406432571134]
+)
 	reads.append(sample_read)
 
 	# For each read, generate the position assignment
 	for read in reads:
 		# TODO: Look at GMM and add in the bumps from the email
 		read = find_position(read)
-		read.print_read()
+		#read.print_read()
 
 	return 0
 
@@ -122,14 +124,13 @@ def find_generated_templates(alignments, generated_templates):
 	
 	for alignment_index, alignment in enumerate(alignments):
 		count = template_strings.count(alignment)
-		print alignment + ' count: ' + str(count)
 		template_scores[alignment_index] = count / num_generated
 
 	# Think about normalizing all the scores for the alignments
 	return template_scores
 
 if __name__ == '__main__':
-	ambio()
+	print timeit.timeit(ambio, number=10000)
 
 
 

@@ -4,7 +4,7 @@ Creates a synthetic data set to use to test ambio.py
 """
 from numpy import random
 
-class Read:
+class GeneratedRead:
 	def __init__(self, nucleotides, score):
 		"""
 		nucloetides: a list of nucleotides
