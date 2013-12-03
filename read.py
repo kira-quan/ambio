@@ -16,7 +16,15 @@ class Read:
 		# the best position for the read, where the position refers to the alignment index
 		self.position = 0
 		# a list of generate probability score for each alignment
-		self.alignment_probability_scores = [0] * size(alignments)
+		self.alignment_probability_scores = [0 for a in alignments]
+
+	def print_read(self):
+		print "Read is: " + self.read
+		print "Alignments are: "
+		for alignment_index, alignment in enumerate(self.alignments):
+			print alignment
+			print "Score: " + str(self.alignment_probability_scores[alignment_index])
+		print "Position is: " + str(self.position)
 
 	def get_alignments(self):
 		return self.alignments
@@ -46,7 +54,7 @@ class Read:
 		"""
 		highest_index = 0
 		highest_score = -1
-		for score, index in enumerate(self.alignment_probability_scores):
+		for index, score in enumerate(self.alignment_probability_scores):
 			if score > highest_score:
 				highest_score = score
 				highest_index = index
