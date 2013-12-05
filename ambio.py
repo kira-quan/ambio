@@ -7,26 +7,63 @@ from __future__ import division
 from scipy import stats
 from read import Read
 from numpy import arange
+from sklearn import mixture # Version 0.14.1
 import timeit
+import numpy as np
+
 
 def ambio():
 	# VARIABLE DECLARATION
 	reads = [] # a list of the reads from the subject
 
 	# Read in the data passed into the program
-	sample_read = Read("ATATCCCTACCAATCTATCCCCAAAAATTCCCTTATACTCTCTATCTAAT", ["ATATCCCTACCAATCTATCCCCAAAAATTCCCTTATACTCTCTATCTAAT", "ATATCCGTACCAATCTATCCCCAACAATTCCCTTATACTCTCTATCTAAT"], [0.01, 0.01], [0.12117885924899019, 0.33415160102483166, 0.10632170228284443, 0.14686061309953347, 0.36473687807903743, 0.01788901020746836, 0.4556917988559128, 0.05398658415199342, 0.3141159989393558, 0.5188456039136414, 0.09759694223390225, 0.6238380031950486, 0.3518641378282821, 0.044791323688791684, 0.9623702159874176, 0.010160983349749797, 0.8957657921549259, 0.6371182123240026, 0.6692419521899688, 0.9793392110614689, 0.8495260682941772, 0.8060781219027288, 0.7690154226048116, 0.21056506302357447, 0.1139836759312679, 0.9014064122332206, 0.19196431719394835, 0.28746715704141923, 0.9962959228799395, 0.8927351709880836, 0.3583972951261465, 0.7808689587097891, 0.9727105799239993, 0.2927723520315926, 0.4530579140475315, 0.3647337645210673, 0.28903500743577293, 0.8009388450973709, 0.33743469460700337, 0.7943477102002011, 0.0015752540267214288, 0.7880426755460618, 0.27760313914221435, 0.33296403513830775, 0.09086776155049259, 0.41120800537971347, 0.9670421855602295, 0.3672821866743671, 0.23757120448243074, 0.6763406432571134]
-)
+	#sample_read = Read("ATATCCCTACCAATCTATCCCCAAAAATTCCCTTATACTCTCTATCTAAT", ["ATATCCCTACCAATCTATCCCCAAAAATTCCCTTATACTCTCTATCTAAT", "ATATCCGTACCAATGTATCCCCAACAATTCCCTTATACTCTCTATCTAAT", "ATATCCGTACCAATCTATCCCCAACAATCCCCTTATACTCTCTATCTAAT", "ATATCGGTACCAATCTATCCCCAACAATTCCCTTATACTCTCTATCTAAT", "ATTTCCGTACCAATCTATCCCCAACAATTCCCTTATACTCTCTATCTAAT", "ATATCCGTACCAATCTATCCCCACCAATTCCCTTATACTCTCTATCTAAT", "ATATCCGTACCAATCTATCCCCAACAATTCCCTTATACTGTCTATCTAAT", "ATATCCGTACCAATCTATCCCCAACAATTCCCTTATACTCTCTATCTGAT"], [0.01, 0.01, 0.001, 0.1, 0.01, 0.1, 0.01, 0.1], 'CC@FFFFFHHGHGFH;EAEEIIIIFHIIFHGGIIIIHEIIGCGFIIHCAG')
+
+	sample_read = Read("ACTG", ["ATCG", "ACTG", "TCTG", "ACTA", "ACTA", "ACTG", "ATCG", "ATTG"], [0.1, 0.02, 0.1, 0.9, 0.5, 0.3, 0.5], "CC@F")
+
 	reads.append(sample_read)
 
 	# For each read, generate the position assignment
 	for read in reads:
 		# TODO: Look at GMM and add in the bumps from the email
-		read = find_position(read)
-		#read.print_read()
+		# read = find_position(read)
+		# read.print_read()
+		read_gmm(read)
+	
+
 
 	return 0
 
-def find_position(read, alpha=0.01, beta=0.01):
+def read_gmm(read):
+	"""
+	Gaussian Mixture Model for the read
+	"""
+	model = mixture.GMM()
+	read_main = read.get_read()
+	alignments = read.get_alignments()
+
+	# Generates observations
+	# bases are converted to their ascii character values
+	read_list = [ord(c) for c in read_main]
+	observations = [ ]
+	for alignment in alignments:
+		alignment_list = [ord(c) for c in alignment] 
+		observations.append( alignment_list )
+	# for base_index, base in enumerate(read_main):
+	# 	base_observations = [ord(base)]
+	# 	for alignment in alignments:
+	# 		base_observations.append(ord(alignment[base_index]))
+
+	# 	observations.append(base_observations)
+
+	print model.fit(observations)
+	print np.round(model.means_, 2)
+	
+	print model.predict([read_list])
+
+
+
+def find_position(read, alpha=0.01, beta=0.01, k=0.6):
 	"""
 	This finds the optimal position for the read based on a GMM that generates probable templates based on the
 	the read. From the generated reads, it finds the one with the
@@ -35,6 +72,7 @@ def find_position(read, alpha=0.01, beta=0.01):
 	# VARIABLE DECLARATION
 	# alpha = insertion probability
 	# beta = deletion probability
+	# k = exploratory
 	pi = 0 # index of the base of interest
 	not_alpha = 1 - alpha
 	not_beta = 1 - beta
@@ -67,17 +105,20 @@ def find_position(read, alpha=0.01, beta=0.01):
 	for base_index, base in enumerate(read_main):
 		# calculate prior based on the quality score of the base and the quality score of the alignment
 		# there is a higher probability of the base in the read if the quality score of the base is high
-		# and the alignment quality score is high
-		prior = read.get_base_quality_score(base_index)
+
+		# TODO: Get the alignment distribution for each base index, higher probability if the base is one of
+		# the previously found
+		prior = read.get_base_quality_score(base_index) * k
 		not_prior = 1 - prior
 		base_choice = base_opts.index(base)
 		base_opts_prob = init_base_opts_prob[:]
+		base_prob_list = read.get_base_probs(base_index)
 
 		for index, base_prob in enumerate(base_opts_prob):
 			if index is base_choice:
-				base_opts_prob[index] = base_prob * prior
+				base_opts_prob[index] = base_prob * prior * base_prob_list[index] 
 			else:
-				base_opts_prob[index] = base_prob * not_prior
+				base_opts_prob[index] = base_prob * not_prior * base_prob_list[index]
 		
 
 		# Normalize base_opts_prob
@@ -86,7 +127,7 @@ def find_position(read, alpha=0.01, beta=0.01):
 		# Generate Draws
 		xk = arange(9)
 		discrete = stats.rv_discrete(name="discrete",values=(xk, final_base_opts_prob))
-		draws = discrete.rvs(size=1000)
+		draws = discrete.rvs(size=10000)
 
 		# If it is the first base, add a new list with the base draw
 		if not generated_templates:
@@ -128,9 +169,23 @@ def find_generated_templates(alignments, generated_templates):
 
 	# Think about normalizing all the scores for the alignments
 	return template_scores
+def convert_to_phred(score):
+	"""
+	Converts Fastq phred scores into values
+	"""
+	# TODO: might need to change based on illumina
+	score_list = []
+	for value in score:
+		numeral = ord(value) - 33
+		pe_score = pow(10, (numeral/-10))
+		score_list.append(1 - pe_score)
+	
+	return score_list
 
 if __name__ == '__main__':
-	print timeit.timeit(ambio, number=10000)
+	print timeit.timeit(ambio, number=1)
+
+
 
 
 

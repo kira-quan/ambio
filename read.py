@@ -3,6 +3,8 @@
 # associated alignments, scores for those alignments and bases, and the position to align the 
 # read
 
+from __future__ import division
+
 class Read:
 	def __init__(self, read, alignments, alignment_quality_scores, bases_quality_score):
 		# the read
@@ -12,11 +14,32 @@ class Read:
 		# a list of the corresponding quality scores of each alignment, same order as alginments
 		self.alignment_quality_scores = alignment_quality_scores
 		# a list of the quality score for each base (in order) in a read
-		self.bases_quality_score = bases_quality_score
+		self.bases_quality_score = self.convert_to_phred(bases_quality_score)
 		# the best position for the read, where the position refers to the alignment index
 		self.position = 0
 		# a list of generate probability score for each alignment
 		self.alignment_probability_scores = [0 for a in alignments]
+		# alternative base calls
+		self.base_call_possibilities = self.find_alternative_alignments()
+
+	def find_alternative_alignments(self):
+		"""
+		Generates other possibilities for a base call based on the given alignments
+		"""
+		base_opts = ['A', 'C', 'G', 'T', 'R', '+A', '+C', '+G', '+T']
+		call_possibilities = []
+		num_alignments = len(self.alignments)
+		for index, base_call in enumerate(self.read):
+			prob_base = [0 for o in base_opts]
+			# find other alignments
+			for a in self.alignments:
+				call = a[index]
+				opt_index = base_opts.index(call)
+				prob_base[opt_index] = prob_base[opt_index] + 1
+				
+			prob_base = [base / num_alignments for base in prob_base]
+			call_possibilities.append(prob_base)
+		return call_possibilities
 
 	def print_read(self):
 		print "Read is: " + self.read
@@ -25,6 +48,9 @@ class Read:
 			print alignment
 			print "Score: " + str(self.alignment_probability_scores[alignment_index])
 		print "Position is: " + str(self.position)
+
+	def get_base_probs(self, index):
+		return self.base_call_possibilities[index]
 
 	def get_alignments(self):
 		return self.alignments
@@ -58,4 +84,23 @@ class Read:
 			if score > highest_score:
 				highest_score = score
 				highest_index = index
+			if score is highest_score:
+				# in case of tie, then assign to alignment with highest alignment score
+				if self.alignment_quality_scores[index] > self.alignment_quality_scores[highest_index]:
+					highest_score = score
+					highest_index = index
+
 		self.set_position(highest_index)
+	
+	def convert_to_phred(self, score):
+		"""
+		Converts Fastq phred scores into values
+		"""
+		# TODO: might need to change based on illumina
+		score_list = []
+		for value in score:
+			numeral = ord(value) - 33
+			pe_score = pow(10, (numeral/-10))
+			score_list.append(1 - pe_score)
+		
+		return score_list
