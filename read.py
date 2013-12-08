@@ -6,6 +6,27 @@
 from __future__ import division
 from numpy import nextafter
 
+class Alignment:
+	def __init__(self, alignment_sequence, alignment_quality_score, allele_frequencies, position):
+		self.alignment = alignment_sequence
+		self.quality_score = alignment_quality_score
+		self.probability_score = -1
+		self.allele_frequencies = []
+		self.position = position
+		for base_index, base in enumerate(align):
+			self.allele_frequencies[align_index].append(base)
+			for call_index, call in enumerate(base):
+				if call is 0:
+					# Don't want probabilities to be zero for other options
+					self.allele_frequencies[base_index][call_index] = nextafter(call, 1)
+
+	def get_allele_frequencies(self, base_index):
+		"""
+		Return the entry in the allele frequencies list at the given base index
+		"""
+		return self.allele_frequencies[base_index]
+
+
 class Read:
 	def __init__(self, read, alignments, alignment_quality_scores, bases_quality_score, allele_frequencies):
 		# the read
@@ -29,19 +50,13 @@ class Read:
 		for align_index, align  in enumerate(allele_frequencies):
 			for base_index, base in enumerate(align):
 				self.allele_frequencies[align_index].append(base)
-				# for call in base:
-				# 	if call is 0:
-				# 		# Don't want probabilities to be zero for other options
-				# 		self.allele_frequencies[align_index][base_index] = nextafter(call, 1)
+				for call in base:
+					if call is 0:
+						# Don't want probabilities to be zero for other options
+						self.allele_frequencies[align_index][base_index] = nextafter(call, 1)
 		print self.allele_frequencies[0]
 		# bases
 		self.base_opts = ['A', 'C', 'G', 'T']
-
-	def get_allele_frequencies(self, base_index):
-		"""
-		Return the entry in the allele frequencies list at the given base index
-		"""
-		return self.allele_frequencies[base_index]
 
 	def find_alternative_alignments(self):
 		"""
