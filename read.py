@@ -4,12 +4,14 @@
 # read
 
 from __future__ import division
+from numpy import nextafter
 
 class Read:
-	def __init__(self, read, alignments, alignment_quality_scores, bases_quality_score):
+	def __init__(self, read, alignments, alignment_quality_scores, bases_quality_score, allele_frequencies):
 		# the read
 		self.read = read
 		# a list of the possible alignments for a read
+		# the first alignment is the original alignment
 		self.alignments = alignments 
 		# a list of the corresponding quality scores of each alignment, same order as alginments
 		self.alignment_quality_scores = alignment_quality_scores
@@ -21,6 +23,21 @@ class Read:
 		self.alignment_probability_scores = [0 for a in alignments]
 		# alternative base calls
 		self.base_call_possibilities = self.find_alternative_alignments()
+		# a list of allele frequencies for each base where each entry in the list is a
+		# a list of frequencies in the following order [A, C, G, T]
+		self.allele_frequencies = []
+		for a  in allele_frequencies:
+			if a is 0:
+				# Don't want probabilities to be zero for other options
+				self.allele_frequencies.append(nextafter(a, 1))
+			else:
+				self.allele_frequencies.append(a)
+
+	def get_allele_frequencies(self, base_index):
+		"""
+		Return the entry in the allele frequencies list at the given base index
+		"""
+		return self.allele_frequencies[base_index]
 
 	def find_alternative_alignments(self):
 		"""

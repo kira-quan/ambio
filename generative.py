@@ -19,72 +19,107 @@ def ambio():
 	# Read in the data passed into the program
 	#sample_read = Read("ATATCCCTACCAATCTATCCCCAAAAATTCCCTTATACTCTCTATCTAAT", ["ATATCCCTACCAATCTATCCCCAAAAATTCCCTTATACTCTCTATCTAAT", "ATATCCGTACCAATGTATCCCCAACAATTCCCTTATACTCTCTATCTAAT", "ATATCCGTACCAATCTATCCCCAACAATCCCCTTATACTCTCTATCTAAT", "ATATCGGTACCAATCTATCCCCAACAATTCCCTTATACTCTCTATCTAAT", "ATTTCCGTACCAATCTATCCCCAACAATTCCCTTATACTCTCTATCTAAT", "ATATCCGTACCAATCTATCCCCACCAATTCCCTTATACTCTCTATCTAAT", "ATATCCGTACCAATCTATCCCCAACAATTCCCTTATACTGTCTATCTAAT", "ATATCCGTACCAATCTATCCCCAACAATTCCCTTATACTCTCTATCTGAT"], [0.01, 0.01, 0.001, 0.1, 0.01, 0.1, 0.01, 0.1], 'CC@FFFFFHHGHGFH;EAEEIIIIFHIIFHGGIIIIHEIIGCGFIIHCAG')
 
-	sample_read = Read("ACTG", ["ATCG", "ACTG", "TCTG", "ACTA", "ACTA", "ACTG", "ATCG", "ATTG"], [0.1, 0.02, 0.1, 0.9, 0.5, 0.3, 0.5], "CC@F", [[1, 0, 0, 0], [0, 0.5, 0, 0.5], [0.1, 0, 0.9, 0], [0, 0, 0, 1]])
+	sample_read = Read("ACTG", ["ATCG", "ACTG", "TCTG", "ACTA", "ACTA", "ACTG", "ATCG", "ATTG"], [0.1, 0.02, 0.1, 0.9, 0.5, 0.3, 0.5], "CC@F")
 
 	reads.append(sample_read)
 
 	# For each read, generate the position assignment
 	for read in reads:
 		# TODO: Look at GMM and add in the bumps from the email
-		read = find_position(read)
-		read.print_read()
-		
+		# read = find_position(read)
+		# read.print_read()
+		read_gmm(read)
+	
+
+
 	return 0
 
-def find_position(read):
+def read_gmm(read):
+	"""
+	Gaussian Mixture Model for the read
+	"""
+	model = mixture.GMM()
+	read_main = read.get_read()
+	alignments = read.get_alignments()
+
+	# Generates observations
+	# bases are converted to their ascii character values
+	read_list = [ord(c) for c in read_main]
+	observations = [ ]
+	for alignment in alignments:
+		alignment_list = [ord(c) for c in alignment] 
+		observations.append( alignment_list )
+	# for base_index, base in enumerate(read_main):
+	# 	base_observations = [ord(base)]
+	# 	for alignment in alignments:
+	# 		base_observations.append(ord(alignment[base_index]))
+
+	# 	observations.append(base_observations)
+
+	print model.fit(observations)
+	print np.round(model.means_, 2)
+	
+	print model.predict([read_list])
+
+
+
+def find_position(read, alpha=0.01, beta=0.01, k=0.6):
 	"""
 	This finds the optimal position for the read based on a GMM that generates probable templates based on the
 	the read. From the generated reads, it finds the one with the
 	highest score and assigns that as the optimal position
 	"""
 	# VARIABLE DECLARATION
+	# alpha = insertion probability
+	# beta = deletion probability
+	# k = exploratory
+	pi = 0 # index of the base of interest
+	not_alpha = 1 - alpha
+	not_beta = 1 - beta
 	read_main = read.get_read()
 
 	# the possibilites for a base, the four nucleotide bases, N for not enough information, R for
 	# the removal of a base +_ for the insertion of a base
-	base_opts = ['A', 'C', 'G', 'T']
+	# TODO: Get rid of N, fix it, check the init_bases loop below and change
+	base_opts = ['A', 'C', 'G', 'T', 'R', '+A', '+C', '+G', '+T']
 
-	# Transition probabilities A <-> G and C <-> T are twice as likely as any other conversion
-	# -1 denotes the index of the given base key
-	transitions = {
-		'A' : [-1, 0.5, 1, 0.5],
-		'C' : [0.5, -1, 0.5, 1],
-		'G' : [1, 0.5, -1, 0.5],
-		'T' : [0.5, 1, 0.5, -1],
-		'N'	: [1, 1, 1, 1]
-	}
-
+	# TODO: Move this so only calculate once
 	# initialize with uniform probability for each option
 	init_base_opts_prob = [0.1 for b in base_opts]
+
+	# multiply by alpha or ~alpha for insertion and beta or ~beta for deletion
+	for index, base_prob in enumerate(init_base_opts_prob):
+		# the first four bases are the regular nucleotides with the 5th being a base without info
+		if index <= 3:
+			init_base_opts_prob[index] = base_prob *  not_alpha * not_beta
+		# the 6th base option is a deletion
+		if index is 4:
+			init_base_opts_prob[index] = base_prob * not_alpha * beta
+		# the final four bases are insertions
+		if index > 4:
+			init_base_opts_prob[index] = base_prob * alpha * not_beta
+
+	# for read, generate possible alignments
+	generated_templates = []
 
 	for base_index, base in enumerate(read_main):
 		# calculate prior based on the quality score of the base and the quality score of the alignment
 		# there is a higher probability of the base in the read if the quality score of the base is high
 
-		# Calculate likelihood
-		# Phred quality scores
-		phred_score = read.get_base_quality_score(base_index)
-
-		# Allele frequencies
-		base_allele_freq = read.get_allele_frequencies(base_index)
-
-		likelihood = [0.25 for r in range(0,4)]
-		base_transition = transitions[base]
-
-		# keep likelihoods uniform if N
-		if base is not 'N':
-			base_choice = base_opts.index(base)
-			for index, l_prob in enumerate(likelihood):
-				if base_choice is index:
-					likelihood[index] = l_prob * phred_score
-				else:
-					# Transition versus Transversion added here
-					likelihood[index] = l_prob * (1 - phred_score) * base_transition[index]
-			
+		# TODO: Get the alignment distribution for each base index, higher probability if the base is one of
+		# the previously found
+		prior = read.get_base_quality_score(base_index) * k
+		not_prior = 1 - prior
+		base_choice = base_opts.index(base)
 		base_opts_prob = init_base_opts_prob[:]
-		
+		base_prob_list = read.get_base_probs(base_index)
+
 		for index, base_prob in enumerate(base_opts_prob):
-			base_opts_prob[index] = base_prob * base_allele_freq[index] * likelihood[index]
+			if index is base_choice:
+				base_opts_prob[index] = base_prob * prior * base_prob_list[index] 
+			else:
+				base_opts_prob[index] = base_prob * not_prior * base_prob_list[index]
+		
 
 		# Normalize base_opts_prob
 		prob_sum = sum(base_opts_prob)
