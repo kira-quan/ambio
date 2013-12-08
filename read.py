@@ -20,18 +20,22 @@ class Read:
 		# the best position for the read, where the position refers to the alignment index
 		self.position = 0
 		# a list of generate probability score for each alignment
-		self.alignment_probability_scores = [0 for a in alignments]
+		self.alignment_probability_scores = [-1 for a in alignments]
 		# alternative base calls
 		self.base_call_possibilities = self.find_alternative_alignments()
 		# a list of allele frequencies for each base where each entry in the list is a
 		# a list of frequencies in the following order [A, C, G, T]
-		self.allele_frequencies = []
-		for a  in allele_frequencies:
-			if a is 0:
-				# Don't want probabilities to be zero for other options
-				self.allele_frequencies.append(nextafter(a, 1))
-			else:
-				self.allele_frequencies.append(a)
+		self.allele_frequencies = [[]for a in alignments]
+		for align_index, align  in enumerate(allele_frequencies):
+			for base_index, base in enumerate(align):
+				self.allele_frequencies[align_index].append(base)
+				# for call in base:
+				# 	if call is 0:
+				# 		# Don't want probabilities to be zero for other options
+				# 		self.allele_frequencies[align_index][base_index] = nextafter(call, 1)
+		print self.allele_frequencies[0]
+		# bases
+		self.base_opts = ['A', 'C', 'G', 'T']
 
 	def get_allele_frequencies(self, base_index):
 		"""
@@ -88,6 +92,40 @@ class Read:
 		# TODO: check that doesn't set all of them
 		self.alignment_probability_scores[alignment_index] = alignment_prob
 
+	def update_alignment_probability(self, alignment_index, new_prob):
+		"""
+		If the current probability is -1 that means it hasn't been set yet and
+		it will set the alignment probability to new_prob, if not then it will multiply
+		the alignment probability by new_prob
+		"""
+		current_score = self.alignment_probability_scores[alignment_index]
+		if current_score is -1:
+			self.alignment_probability_scores[alignment_index] = new_prob
+		else:
+			self.alignment_probability_scores[alignment_index] = current_score * new_prob 
+
+	def update_alignment_probability_with_list(self, base_index, likelihoods):
+		"""
+		For the given index and likelihood list, updates each alignment with the probability
+		"""
+		base_opts = self.base_opts
+		for align_index, alignment in enumerate(self.alignments):
+			# Find probability associated with the base call in that alignment
+			
+			alignment_base_index = base_opts.index(alignment[base_index])
+			if align_index is 1:
+				print alignment_base_index
+				print alignment[base_index]
+
+			# Include alignment allele frequency
+			print align_index
+			print self.allele_frequencies[align_index]
+			base_prob = likelihoods[alignment_base_index] * self.allele_frequencies[align_index][base_index][alignment_base_index]
+			self.update_alignment_probability(align_index, base_prob)
+
+		print 'updated alignment scores'
+		print self.alignment_probability_scores
+
 	def get_read(self):
 		return self.read
 
@@ -97,6 +135,13 @@ class Read:
 		"""
 		highest_index = 0
 		highest_score = -1
+
+		# Normalize base_opts_prob
+		prob_sum = sum(self.alignment_probability_scores)
+		print prob_sum
+		self.alignment_probability_scores = [(prob/prob_sum) for prob in self.alignment_probability_scores]
+		print self.alignment_probability_scores
+
 		for index, score in enumerate(self.alignment_probability_scores):
 			if score > highest_score:
 				highest_score = score

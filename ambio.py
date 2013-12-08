@@ -19,7 +19,9 @@ def ambio():
 	# Read in the data passed into the program
 	#sample_read = Read("ATATCCCTACCAATCTATCCCCAAAAATTCCCTTATACTCTCTATCTAAT", ["ATATCCCTACCAATCTATCCCCAAAAATTCCCTTATACTCTCTATCTAAT", "ATATCCGTACCAATGTATCCCCAACAATTCCCTTATACTCTCTATCTAAT", "ATATCCGTACCAATCTATCCCCAACAATCCCCTTATACTCTCTATCTAAT", "ATATCGGTACCAATCTATCCCCAACAATTCCCTTATACTCTCTATCTAAT", "ATTTCCGTACCAATCTATCCCCAACAATTCCCTTATACTCTCTATCTAAT", "ATATCCGTACCAATCTATCCCCACCAATTCCCTTATACTCTCTATCTAAT", "ATATCCGTACCAATCTATCCCCAACAATTCCCTTATACTGTCTATCTAAT", "ATATCCGTACCAATCTATCCCCAACAATTCCCTTATACTCTCTATCTGAT"], [0.01, 0.01, 0.001, 0.1, 0.01, 0.1, 0.01, 0.1], 'CC@FFFFFHHGHGFH;EAEEIIIIFHIIFHGGIIIIHEIIGCGFIIHCAG')
 
-	sample_read = Read("ACTG", ["ATCG", "ACTG", "TCTG", "ACTA", "ACTA", "ACTG", "ATCG", "ATTG"], [0.1, 0.02, 0.1, 0.9, 0.5, 0.3, 0.5], "CC@F", [[1, 0, 0, 0], [0, 0.5, 0, 0.5], [0.1, 0, 0.9, 0], [0, 0, 0, 1]])
+	alleles = [1, 0, 0, 0], [0, 0.5, 0, 0.5], [0, 0, 0, 1], [0.1, 0, 0, 0.9]
+	changed_alleles = [1, 0, 0, 0], [0, 0.5, 0, 0.5], [0, 0, 0, 1], [0.5, 0, 0, 0.5]
+	sample_read = Read("ACTG", ["ATCG", "ACTG", "TCTG", "ACTA", "ACTA", "ACTG", "ATCG", "ATTG"], [0.1, 0.02, 0.1, 0.9, 0.5, 0.3, 0.5], "CC@F", [alleles, alleles, alleles, changed_alleles, alleles, alleles, alleles, alleles])
 
 	reads.append(sample_read)
 
@@ -66,7 +68,8 @@ def find_position(read):
 		phred_score = read.get_base_quality_score(base_index)
 
 		# Allele frequencies
-		base_allele_freq = read.get_allele_frequencies(base_index)
+		# Moved to the read class
+		# base_allele_freq = read.get_allele_frequencies(base_index)
 
 		likelihood = [0.25 for r in range(0,4)]
 		base_transition = transitions[base]
@@ -82,35 +85,22 @@ def find_position(read):
 					likelihood[index] = l_prob * (1 - phred_score) * base_transition[index]
 			
 		base_opts_prob = init_base_opts_prob[:]
+		print 'likelihood'
+		print likelihood
 		
 		for index, base_prob in enumerate(base_opts_prob):
-			base_opts_prob[index] = base_prob * base_allele_freq[index] * likelihood[index]
+			base_opts_prob[index] = base_prob * likelihood[index]
 
 		# Normalize base_opts_prob
 		prob_sum = sum(base_opts_prob)
-		final_base_opts_prob = [prob/prob_sum for prob in base_opts_prob]
-		# Generate Draws
-		xk = arange(9)
-		discrete = stats.rv_discrete(name="discrete",values=(xk, final_base_opts_prob))
-		draws = discrete.rvs(size=10000)
+		final_base_opts_prob = [np.nextafter(prob/prob_sum, 1) for prob in base_opts_prob]
+		
+		print 'Final base probs'
+		print final_base_opts_prob
 
-		# If it is the first base, add a new list with the base draw
-		if not generated_templates:
-			for base_draw in draws:
-				generated_templates.append([base_opts[base_draw]])
-
-		else:
-			# Append draw to generated reads
-			for read_index, base_draw in enumerate(draws):
-				generated_templates[read_index].append(base_opts[base_draw])
-
-	# Find the matching generated templates and get score
-	scores = find_generated_templates(read.get_alignments(), generated_templates)
-
-	# Set score
-	for alignment_index, score in enumerate(scores):
-		read.set_alignment_probability(alignment_index, score)
-
+		# Update alignment scores
+		read.update_alignment_probability_with_list(base_index, final_base_opts_prob)
+		
 	# Set the position for the read to the highest position
 	read.find_highest_position()
 
