@@ -19,9 +19,9 @@ def ambio():
 	# Read in the data passed into the program
 	#sample_read = Read("ATATCCCTACCAATCTATCCCCAAAAATTCCCTTATACTCTCTATCTAAT", ["ATATCCCTACCAATCTATCCCCAAAAATTCCCTTATACTCTCTATCTAAT", "ATATCCGTACCAATGTATCCCCAACAATTCCCTTATACTCTCTATCTAAT", "ATATCCGTACCAATCTATCCCCAACAATCCCCTTATACTCTCTATCTAAT", "ATATCGGTACCAATCTATCCCCAACAATTCCCTTATACTCTCTATCTAAT", "ATTTCCGTACCAATCTATCCCCAACAATTCCCTTATACTCTCTATCTAAT", "ATATCCGTACCAATCTATCCCCACCAATTCCCTTATACTCTCTATCTAAT", "ATATCCGTACCAATCTATCCCCAACAATTCCCTTATACTGTCTATCTAAT", "ATATCCGTACCAATCTATCCCCAACAATTCCCTTATACTCTCTATCTGAT"], [0.01, 0.01, 0.001, 0.1, 0.01, 0.1, 0.01, 0.1], 'CC@FFFFFHHGHGFH;EAEEIIIIFHIIFHGGIIIIHEIIGCGFIIHCAG')
 
-	alleles = [1, 0, 0, 0], [0, 0.5, 0, 0.5], [0, 0, 0, 1], [0.1, 0, 0, 0.9]
-	changed_alleles = [1, 0, 0, 0], [0, 0.5, 0, 0.5], [0, 0, 0, 1], [0.5, 0, 0, 0.5]
-	sample_read = Read("ACTG", ["ATCG", "ACTG", "TCTG", "ACTA", "ACTA", "ACTG", "ATCG", "ATTG"], [0.1, 0.02, 0.1, 0.9, 0.5, 0.3, 0.5], "CC@F", [alleles, alleles, alleles, changed_alleles, alleles, alleles, alleles, alleles])
+	alleles = [0.05, 0, 0, 0.95], [0, 0.5, 0, 0.5], [0, 0, 0, 1], [0.1, 0, 0.9, 0]
+	changed_alleles = [1, 0, 0, 0], [0, 0.5, 0, 0.5], [0, 0, 0, 1], [0.5, 0, 0.5, 0]
+	sample_read = Read("ACTG", ["ATCG", "ACAG", "TCTG", "ACTA", "ACTA", "ACTA", "ATCG", "ATTG"], [0.1, 0.02, 0.1, 0.9, 0.5, 0.3, 0.5], "CC@F", [alleles, alleles, alleles, changed_alleles, alleles, alleles, alleles, alleles])
 
 	reads.append(sample_read)
 
@@ -33,11 +33,12 @@ def ambio():
 		
 	return 0
 
-def find_position(read):
+def find_position(read,t=1,a=1,p=1):
 	"""
 	This finds the optimal position for the read based on a GMM that generates probable templates based on the
 	the read. From the generated reads, it finds the one with the
 	highest score and assigns that as the optimal position
+	t, a, and p are all weighting scores for transitions, allele frequencies, and phred scores respectively
 	"""
 	# VARIABLE DECLARATION
 	read_main = read.get_read()
@@ -79,14 +80,12 @@ def find_position(read):
 			base_choice = base_opts.index(base)
 			for index, l_prob in enumerate(likelihood):
 				if base_choice is index:
-					likelihood[index] = l_prob * phred_score
+					likelihood[index] = l_prob * (phred_score * p)
 				else:
 					# Transition versus Transversion added here
-					likelihood[index] = l_prob * (1 - phred_score) * base_transition[index]
+					likelihood[index] = l_prob * ((1 - phred_score) * p) * (base_transition[index] * t)
 			
 		base_opts_prob = init_base_opts_prob[:]
-		print 'likelihood'
-		print likelihood
 		
 		for index, base_prob in enumerate(base_opts_prob):
 			base_opts_prob[index] = base_prob * likelihood[index]
@@ -94,12 +93,9 @@ def find_position(read):
 		# Normalize base_opts_prob
 		prob_sum = sum(base_opts_prob)
 		final_base_opts_prob = [np.nextafter(prob/prob_sum, 1) for prob in base_opts_prob]
-		
-		print 'Final base probs'
-		print final_base_opts_prob
 
 		# Update alignment scores
-		read.update_alignment_probability_with_list(base_index, final_base_opts_prob)
+		read.update_alignment_probability_with_list(base_index, final_base_opts_prob, a)
 		
 	# Set the position for the read to the highest position
 	read.find_highest_position()

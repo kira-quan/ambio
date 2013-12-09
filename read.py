@@ -50,11 +50,11 @@ class Read:
 		for align_index, align  in enumerate(allele_frequencies):
 			for base_index, base in enumerate(align):
 				self.allele_frequencies[align_index].append(base)
-				for call in base:
+				for call_index, call in enumerate(base):
 					if call is 0:
 						# Don't want probabilities to be zero for other options
-						self.allele_frequencies[align_index][base_index] = nextafter(call, 1)
-		print self.allele_frequencies[0]
+						self.allele_frequencies[align_index][base_index][call_index] = nextafter(call, 1)
+		
 		# bases
 		self.base_opts = ['A', 'C', 'G', 'T']
 
@@ -119,27 +119,28 @@ class Read:
 		else:
 			self.alignment_probability_scores[alignment_index] = current_score * new_prob 
 
-	def update_alignment_probability_with_list(self, base_index, likelihoods):
+	def update_alignment_probability_with_list(self, base_index, likelihoods, weight):
 		"""
-		For the given index and likelihood list, updates each alignment with the probability
+		For the given index and likelihood list, updates each alignment with the probability and 
+		the given weight for allele_frequencies
 		"""
 		base_opts = self.base_opts
 		for align_index, alignment in enumerate(self.alignments):
 			# Find probability associated with the base call in that alignment
 			
 			alignment_base_index = base_opts.index(alignment[base_index])
-			if align_index is 1:
-				print alignment_base_index
-				print alignment[base_index]
 
 			# Include alignment allele frequency
-			print align_index
-			print self.allele_frequencies[align_index]
-			base_prob = likelihoods[alignment_base_index] * self.allele_frequencies[align_index][base_index][alignment_base_index]
-			self.update_alignment_probability(align_index, base_prob)
+			base_allele_frequency = self.allele_frequencies[align_index][base_index][alignment_base_index]
+			read_base = self.read[base_index]
 
-		print 'updated alignment scores'
-		print self.alignment_probability_scores
+			# Don't penalize for unknown SNP if phred score is high
+			if self.get_base_quality_score(base_index) > 0.95 and read_base != alignment[base_index] and base_allele_frequency is nextafter(0,1):
+				base_prob = likelihoods[alignment_base_index] 
+			else:
+				base_prob = likelihoods[alignment_base_index] * base_allele_frequency * weight
+
+			self.update_alignment_probability(align_index, base_prob)
 
 	def get_read(self):
 		return self.read
@@ -153,9 +154,7 @@ class Read:
 
 		# Normalize base_opts_prob
 		prob_sum = sum(self.alignment_probability_scores)
-		print prob_sum
 		self.alignment_probability_scores = [(prob/prob_sum) for prob in self.alignment_probability_scores]
-		print self.alignment_probability_scores
 
 		for index, score in enumerate(self.alignment_probability_scores):
 			if score > highest_score:
