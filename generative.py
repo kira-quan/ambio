@@ -14,14 +14,36 @@ import numpy as np
 
 def ambio():
 	# VARIABLE DECLARATION
-	reads = [] # a list of the reads from the subject
+	"""
+	In genome changed index: 26 of base G to A
+	In genome changed index: 51 of base A to G
+	In genome changed index: 184 of base C to T
+	In repeat changed index: 22 of base C to T
+	In repeat changed index: 5 of base G to A
+
+	"""
+	reads = []
+	template_list = [['G', 'G', 'C', 'A', 'G', 'A', 'A', 'A', 'G', 'A', 'C', 'G', 'G', 'C', 'G', 'G', 'C', 'C', 'C', 'G', 'A', 'A', 'T', 'A', 'A', 'C', 'A', 'C', 'A', 'C', 'C', 'G', 'A', 'C', 'G', 'G', 'C', 'A', 'G', 'G', 'G', 'A', 'A', 'C', 'A', 'C', 'G', 'C', 'A', 'A'], ['G', 'G', 'C', 'A', 'G', 'A', 'A', 'A', 'G', 'A', 'C', 'G', 'G', 'C', 'G', 'G', 'C', 'C', 'C', 'G', 'A', 'A', 'T', 'A', 'A', 'C', 'A', 'C', 'A', 'C', 'C', 'G', 'A', 'C', 'G', 'G', 'C', 'A', 'G', 'G', 'G', 'A', 'A', 'C', 'A', 'C', 'G', 'C', 'A', 'A'], ['A', 'G', 'G', 'C', 'G', 'G', 'A', 'A', 'C', 'A', 'C', 'A', 'G', 'G', 'C', 'C', 'C', 'A', 'G', 'A', 'A', 'C', 'A', 'C', 'C', 'G', 'G', 'A', 'G', 'G', 'C', 'A', 'C', 'G', 'G', 'C', 'G', 'A', 'A', 'G', 'A', 'A', 'C', 'G', 'A', 'G', 'A', 'C', 'G', 'C'], ['A', 'G', 'G', 'C', 'G', 'G', 'A', 'A', 'C', 'A', 'C', 'A', 'G', 'G', 'C', 'C', 'C', 'A', 'G', 'A', 'A', 'C', 'A', 'C', 'C', 'G', 'G', 'A', 'G', 'G', 'C', 'A', 'C', 'G', 'G', 'C', 'G', 'A', 'A', 'G', 'A', 'A', 'C', 'G', 'A', 'G', 'A', 'C', 'G', 'C'], ['C', 'C', 'A', 'C', 'C', 'A', 'C', 'C', 'C', 'G', 'G', 'A', 'A', 'A', 'A', 'A', 'G', 'C', 'A', 'C', 'A', 'A', 'C', 'C', 'G', 'C', 'G', 'C', 'C', 'A', 'G', 'A', 'A', 'C', 'C', 'G', 'A', 'C', 'A', 'G', 'G', 'A', 'C', 'C', 'A', 'A', 'A', 'C', 'C', 'G'], ['C', 'C', 'A', 'C', 'C', 'A', 'C', 'C', 'C', 'G', 'G', 'A', 'A', 'A', 'A', 'A', 'G', 'C', 'A', 'C', 'A', 'A', 'C', 'C', 'G', 'C', 'G', 'C', 'C', 'A', 'G', 'A', 'A', 'C', 'C', 'G', 'A', 'C', 'A', 'G', 'G', 'A', 'C', 'C', 'A', 'A', 'A', 'C', 'C', 'G'], ['G', 'A', 'C', 'G', 'G', 'C', 'C', 'C', 'G', 'G', 'A', 'A', 'G', 'G', 'C', 'C', 'A', 'G', 'G', 'C', 'A', 'A', 'G', 'G', 'C', 'A', 'A', 'C', 'A', 'A', 'C', 'C', 'C', 'A', 'T', 'C', 'G', 'A', 'A', 'A', 'A', 'C', 'A', 'G', 'C', 'A', 'G', 'C', 'G', 'C'], ['G', 'A', 'C', 'G', 'G', 'C', 'C', 'C', 'G', 'G', 'A', 'A', 'G', 'G', 'C', 'C', 'A', 'G', 'G', 'C', 'A', 'A', 'G', 'G', 'C', 'A', 'A', 'C', 'A', 'A', 'C', 'C', 'C', 'A', 'T', 'C', 'G', 'A', 'A', 'A', 'A', 'C', 'A', 'G', 'C', 'A', 'G', 'C', 'G', 'C']]
+	read_list = [['G', 'G', 'C', 'A', 'G', 'A', 'A', 'A', 'G', 'A', 'C', 'G', 'G', 'C', 'G', 'G', 'C', 'C', 'C', 'G', 'A', 'A', 'T', 'A', 'A', 'C', 'A', 'C', 'A', 'C', 'C', 'G', 'A', 'C', 'G', 'G', 'C', 'A', 'G', 'G', 'G', 'A', 'A', 'C', 'A', 'C', 'G', 'C', 'A', 'A'], ['G', 'G', 'C', 'A', 'G', 'A', 'A', 'A', 'G', 'A', 'C', 'G', 'G', 'C', 'G', 'G', 'C', 'C', 'C', 'G', 'A', 'A', 'T', 'A', 'A', 'C', 'A', 'C', 'A', 'C', 'C', 'G', 'A', 'C', 'G', 'G', 'C', 'A', 'G', 'G', 'G', 'A', 'A', 'C', 'A', 'C', 'G', 'C', 'A', 'A'], ['A', 'G', 'G', 'C', 'G', 'G', 'A', 'A', 'C', 'A', 'C', 'A', 'G', 'G', 'C', 'C', 'C', 'A', 'G', 'A', 'A', 'C', 'A', 'C', 'C', 'G', 'G', 'A', 'G', 'G', 'C', 'A', 'C', 'G', 'G', 'C', 'G', 'A', 'A', 'G', 'A', 'A', 'C', 'G', 'A', 'G', 'A', 'C', 'G', 'C'], ['A', 'G', 'G', 'C', 'G', 'G', 'A', 'A', 'C', 'A', 'C', 'A', 'G', 'G', 'C', 'C', 'C', 'A', 'G', 'A', 'A', 'C', 'A', 'C', 'C', 'G', 'G', 'A', 'G', 'G', 'C', 'A', 'C', 'G', 'G', 'C', 'G', 'A', 'A', 'G', 'A', 'A', 'C', 'G', 'A', 'G', 'A', 'C', 'G', 'C'], ['C', 'C', 'A', 'C', 'C', 'A', 'C', 'C', 'C', 'G', 'G', 'A', 'A', 'A', 'A', 'A', 'G', 'C', 'A', 'C', 'A', 'A', 'C', 'C', 'G', 'C', 'G', 'C', 'C', 'A', 'G', 'A', 'A', 'C', 'C', 'G', 'A', 'C', 'A', 'G', 'G', 'A', 'C', 'C', 'A', 'A', 'A', 'C', 'C', 'G'], ['C', 'C', 'A', 'C', 'C', 'A', 'C', 'C', 'C', 'G', 'G', 'A', 'A', 'A', 'A', 'A', 'G', 'C', 'A', 'C', 'A', 'A', 'C', 'C', 'G', 'C', 'G', 'C', 'C', 'A', 'G', 'A', 'A', 'C', 'C', 'G', 'A', 'C', 'A', 'G', 'G', 'A', 'C', 'C', 'A', 'A', 'A', 'C', 'C', 'G'], ['G', 'A', 'C', 'G', 'G', 'C', 'C', 'C', 'G', 'G', 'A', 'A', 'G', 'G', 'C', 'C', 'A', 'G', 'G', 'C', 'A', 'A', 'G', 'G', 'C', 'A', 'A', 'C', 'A', 'A', 'C', 'C', 'C', 'A', 'T', 'C', 'G', 'A', 'A', 'A', 'A', 'C', 'A', 'G', 'C', 'A', 'G', 'C', 'G', 'C'], ['G', 'A', 'C', 'G', 'G', 'C', 'C', 'C', 'G', 'G', 'A', 'A', 'G', 'G', 'C', 'C', 'A', 'G', 'G', 'C', 'A', 'A', 'G', 'G', 'C', 'A', 'A', 'C', 'A', 'A', 'C', 'C', 'C', 'A', 'T', 'C', 'G', 'A', 'A', 'A', 'A', 'C', 'A', 'G', 'C', 'A', 'G', 'C', 'G', 'C']]
+
+	template_list.extend(read_list)
+
+	print len(template_list)
+	alleles = [[0, 0, 0, 0] for n in range(0,50)]
+
+	for r_index, r in enumerate(read_list):
+		if r_index % 2 == 0:
+			read = Read(r, template_list, [10, 5], 'CC@FFFFFHHGHGFH;EAEEIIIIFHIIFHGGIIIIHEIIGCGFIIHCAG', [alleles, alleles])
+		if r_index % 2 == 1:
+			read = Read(r, template_list, [5, 10], 'CC@FFFFFHHGHGFH;EAEEIIIIFHIIFHGGIIIIHEIIGCGFIIHCAG', [alleles,alleles])
+		reads.append(read)
 
 	# Read in the data passed into the program
 	#sample_read = Read("ATATCCCTACCAATCTATCCCCAAAAATTCCCTTATACTCTCTATCTAAT", ["ATATCCCTACCAATCTATCCCCAAAAATTCCCTTATACTCTCTATCTAAT", "ATATCCGTACCAATGTATCCCCAACAATTCCCTTATACTCTCTATCTAAT", "ATATCCGTACCAATCTATCCCCAACAATCCCCTTATACTCTCTATCTAAT", "ATATCGGTACCAATCTATCCCCAACAATTCCCTTATACTCTCTATCTAAT", "ATTTCCGTACCAATCTATCCCCAACAATTCCCTTATACTCTCTATCTAAT", "ATATCCGTACCAATCTATCCCCACCAATTCCCTTATACTCTCTATCTAAT", "ATATCCGTACCAATCTATCCCCAACAATTCCCTTATACTGTCTATCTAAT", "ATATCCGTACCAATCTATCCCCAACAATTCCCTTATACTCTCTATCTGAT"], [0.01, 0.01, 0.001, 0.1, 0.01, 0.1, 0.01, 0.1], 'CC@FFFFFHHGHGFH;EAEEIIIIFHIIFHGGIIIIHEIIGCGFIIHCAG')
 
-	sample_read = Read("ACTG", ["ATCG", "ACTG", "TCTG", "ACTA", "ACTA", "ACTG", "ATCG", "ATTG"], [0.1, 0.02, 0.1, 0.9, 0.5, 0.3, 0.5], "CC@F")
+	#sample_read = Read("ACTG", ["ATCG", "ACTG", "TCTG", "ACTA", "ACTA", "ACTG", "ATCG", "ATTG"], [0.1, 0.02, 0.1, 0.9, 0.5, 0.3, 0.5], "CC@F")
 
-	reads.append(sample_read)
+	#reads.append(sample_read)
 
 	# For each read, generate the position assignment
 	for read in reads:
@@ -38,7 +60,7 @@ def read_gmm(read):
 	"""
 	Gaussian Mixture Model for the read
 	"""
-	model = mixture.GMM()
+	model = mixture.GMM(n_components=8)
 	read_main = read.get_read()
 	alignments = read.get_alignments()
 

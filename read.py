@@ -6,55 +6,65 @@
 from __future__ import division
 from numpy import nextafter
 
-class Alignment:
-	def __init__(self, alignment_sequence, alignment_quality_score, allele_frequencies, position):
-		self.alignment = alignment_sequence
-		self.quality_score = alignment_quality_score
-		self.probability_score = -1
-		self.allele_frequencies = []
-		self.position = position
-		for base_index, base in enumerate(align):
-			self.allele_frequencies[align_index].append(base)
-			for call_index, call in enumerate(base):
-				if call is 0:
-					# Don't want probabilities to be zero for other options
-					self.allele_frequencies[base_index][call_index] = nextafter(call, 1)
+# class Alignment:
+# 	def __init__(self, alignment_sequence, alignment_quality_score, allele_frequencies, position):
+# 		self.alignment = alignment_sequence
+# 		self.quality_score = alignment_quality_score
+# 		self.probability_score = -1
+# 		self.allele_frequencies = []
+# 		self.position = position
+# 		self.allele_frequencies.append(base)
+# 		for call_index, call in enumerate(base):
+# 			if call is 0:
+# 				# Don't want probabilities to be zero for other options
+# 				self.allele_frequencies[base_index][call_index] = nextafter(call, 1)
 
-	def get_allele_frequencies(self, base_index):
-		"""
-		Return the entry in the allele frequencies list at the given base index
-		"""
-		return self.allele_frequencies[base_index]
+# 	def get_allele_frequencies(self, base_index):
+# 		"""
+# 		Return the entry in the allele frequencies list at the given base index
+# 		"""
+# 		return self.allele_frequencies[base_index]
 
 
 class Read:
-	def __init__(self, read, alignments, alignment_quality_scores, bases_quality_score, allele_frequencies):
+	def __init__(self, read, alignments, mapq, bases_quality_score, allele_frequencies, alignment_positions=None, original_chromosome=None, cigar='50M'):
 		# the read
 		self.read = read
 		# a list of the possible alignments for a read
 		# the first alignment is the original alignment
 		self.alignments = alignments 
 		# a list of the corresponding quality scores of each alignment, same order as alginments
-		self.alignment_quality_scores = alignment_quality_scores
+		#self.alignment_quality_scores = alignment_quality_scores
 		# a list of the quality score for each base (in order) in a read
+
+		self.mapq = mapq
+		self.cigar = cigar
+
 		self.bases_quality_score = self.convert_to_phred(bases_quality_score)
 		# the best position for the read, where the position refers to the alignment index
 		self.position = 0
 		# a list of generate probability score for each alignment
 		self.alignment_probability_scores = [-1 for a in alignments]
 		# alternative base calls
-		self.base_call_possibilities = self.find_alternative_alignments()
+		# self.base_call_possibilities = self.find_alternative_alignments()
+
+
+		self.alignment_positions = alignment_positions
+		self.original_chromosome = original_chromosome
+
 		# a list of allele frequencies for each base where each entry in the list is a
 		# a list of frequencies in the following order [A, C, G, T]
-		self.allele_frequencies = [[]for a in alignments]
-		for align_index, align  in enumerate(allele_frequencies):
-			for base_index, base in enumerate(align):
-				self.allele_frequencies[align_index].append(base)
-				for call_index, call in enumerate(base):
-					if call is 0:
-						# Don't want probabilities to be zero for other options
-						self.allele_frequencies[align_index][base_index][call_index] = nextafter(call, 1)
-		
+		if allele_frequencies is not None:
+			self.allele_frequencies = [[]for a in alignments]
+			for align_index, align  in enumerate(allele_frequencies):
+				for base_index, base in enumerate(align):
+					self.allele_frequencies[align_index].append(base)
+					for call_index, call in enumerate(base):
+						if call is 0:
+							# Don't want probabilities to be zero for other options
+							self.allele_frequencies[align_index][base_index][call_index] = nextafter(call, 1)
+		else:
+			self.allele_frequencies = None
 		# bases
 		self.base_opts = ['A', 'C', 'G', 'T']
 
@@ -84,6 +94,20 @@ class Read:
 			print alignment
 			print "Score: " + str(self.alignment_probability_scores[alignment_index])
 		print "Position is: " + str(self.position)
+
+	def print_all_read_info(self):
+		print '\n----------------------------------------------\n'
+		print "Read is: " + self.read
+		print "Alignments are: "
+		for alignment_index, alignment in enumerate(self.alignments):
+			print alignment
+			print "Score: " + str(self.alignment_probability_scores[alignment_index])
+			print 'Position: ' + str(self.alignment_positions[alignment_index])
+		print "Position is: " + str(self.position)
+		print 'CIGAR is: ' + str(self.cigar) + 'MAPQ is: ' + str(self.mapq)
+		print 'Original Chromosome' + str(self.original_chromosome)
+		print 'Phred: ' 
+		print self.bases_quality_score
 
 	def get_base_probs(self, index):
 		return self.base_call_possibilities[index]
@@ -131,7 +155,11 @@ class Read:
 			alignment_base_index = base_opts.index(alignment[base_index])
 
 			# Include alignment allele frequency
-			base_allele_frequency = self.allele_frequencies[align_index][base_index][alignment_base_index]
+			if self.allele_frequencies is not None:
+				base_allele_frequency = self.allele_frequencies[align_index][base_index][alignment_base_index]
+			else:
+				base_allele_frequency = 1
+
 			read_base = self.read[base_index]
 
 			# Don't penalize for unknown SNP if phred score is high
@@ -160,11 +188,13 @@ class Read:
 			if score > highest_score:
 				highest_score = score
 				highest_index = index
-			if score is highest_score:
-				# in case of tie, then assign to alignment with highest alignment score
-				if self.alignment_quality_scores[index] > self.alignment_quality_scores[highest_index]:
-					highest_score = score
-					highest_index = index
+
+			# TODO: Add in tie breaker
+			# if score is highest_score:
+			# 	# in case of tie, then assign to alignment with highest alignment score
+			# 	if self.alignment_quality_scores[index] > self.alignment_quality_scores[highest_index]:
+			# 		highest_score = score
+			# 		highest_index = index
 
 		self.set_position(highest_index)
 	

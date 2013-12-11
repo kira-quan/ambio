@@ -10,6 +10,7 @@ from numpy import arange
 from sklearn import mixture # Version 0.14.1
 import timeit
 import numpy as np
+import sys
 
 
 def ambio():
@@ -133,8 +134,37 @@ def convert_to_phred(score):
 	
 	return score_list
 
+
+def read_in_file():
+	"""
+	Reads in the files passed in to the script
+	"""
+	# Declare variables
+	reads = []
+
+	# Get command line arguments
+	arguments = sys.argv
+	arguments_length = len(arguments)
+
+	# Read file is the first argument
+	read_file_name = arguments[1]
+
+	# Process read file 
+	read_file = open(read_file_name, 'r')
+	for line in read_file:
+		read_info = line.split()
+		new_read = Read(read_info[2], [read_info[2]], read_info[5], read_info[3], None, [read_info[1]], read_info[0], read_info[4] ) 
+		reads.append(new_read)
+
+	# Repeat regions file in the second argument
+	repeat_file_name = arguments[2]
+
+	# SNP files are the remaining ones
+	snp_file_names = [arguments[file_id] for file_id in range(3, arguments_length) ]
+
 if __name__ == '__main__':
-	print timeit.timeit(ambio, number=1)
+	read_in_file()
+	#print timeit.timeit(ambio, number=1)
 
 
 
