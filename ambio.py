@@ -56,15 +56,15 @@ def find_position(read,t=1,a=1,p=1):
 	# Transition probabilities A <-> G and C <-> T are twice as likely as any other conversion
 	# -1 denotes the index of the given base key
 	transitions = {
-		'A' : [-1, 0.5, 1, 0.5],
-		'C' : [0.5, -1, 0.5, 1],
-		'G' : [1, 0.5, -1, 0.5],
-		'T' : [0.5, 1, 0.5, -1],
+		'A' : [-1, 0.333, 0.666, 0.333],
+		'C' : [0.333, -1, 0.333, 0.666],
+		'G' : [0.666, 0.333, -1, 0.333],
+		'T' : [0.333, 0.666, 0.333, -1],
 		'N'	: [1, 1, 1, 1]
 	}
 
 	# initialize with uniform probability for each option
-	init_base_opts_prob = [0.1 for b in base_opts]
+	init_base_opts_prob = [0.25 for b in base_opts]
 
 	for base_index, base in enumerate(read_main):
 		# calculate prior based on the quality score of the base and the quality score of the alignment
@@ -228,6 +228,8 @@ def read_in_file():
 	for file_name in snp_file_names:
 		snp_file = open(file_name, 'r')
 		snp_file.close()
+
+	
 
 if __name__ == '__main__':
 	read_in_file()

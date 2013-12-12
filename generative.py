@@ -65,11 +65,11 @@ def mult_reads_gmm(reads):
 	base_opts = ['A', 'C', 'G', 'T']
 
 
-	model = mixture.GMM(n_components=25)
+	model = mixture.GMM(n_components=91, covariance_type='full')
 	num_reads = len(reads)
 
 	# Train on 10% of the reads
-	train_num = int(num_reads * 0.5)
+	train_num = int(num_reads * 0.9)
 	
 	training_reads = []
 
@@ -100,40 +100,69 @@ def mult_reads_gmm(reads):
 
 	# 	observations.append(base_observations)
 
-	print model.fit(observations)
+	#print model.fit(observations)
+	model.fit(read_list)
 	means =  np.round(model.means_, 2)
+	covars = np.round(model.covars_, 2)
 	converted_means = []
 	for num_list in means:
 		# convert to nearest acceptable letter
-		char_means = []
 		#char_means = [chr(int(n)) for n in num_list]
+		char_means = [convert_to_letter(n) for n in num_list]
 
-		for n in num_list:
-			if n < 0:
-				char_means.append('A')
-			elif n < 150:
-				char_means.append('C')
-			elif n < 250:
-				char_means.append('G')
-			elif n < 350:
-				char_means.append('T')
-			else:
-				char_means.append('\'')
-
-
+			
 		converted_means.append(char_means)
 	
 	predictions = model.predict(read_list)
-	
+
+	read_predictions = []
 	for index, prediction in enumerate(predictions):
-		print 'Read: '
-		print reads[index].get_read()
-		print 'Prediction: '
+		mapping = [prediction, reads[index]]
+		read_predictions.append(mapping)
+
+	for read_pr in read_predictions:
+		prediction = read_pr[0]
+		def filt(x): return x[0] == prediction
+		matches = filter(filt, read_predictions)
 		print prediction
-		print converted_means[prediction]
-		print 'Means: '
-		print means[prediction]
-		print '----------------------------------------\n'
+		print read_pr[1].get_read()
+		print read_pr[1].get_position()
+		print 'Matches'
+		for m in matches:
+			print m[1].get_read() +  m[1].get_position()
+
+	
+	# for index, prediction in enumerate(predictions):
+	# 	print 'Read: '
+	# 	print reads[index].get_read()
+	# 	print 'Prediction: '
+	# 	print prediction
+	# 	print converted_means[prediction]
+	# 	print 'Means: '
+	# 	print means[prediction]
+	# 	print covars[prediction]
+	# 	print '----------------------------------------\n'
+
+
+	# posteriors = model.predict_proba(read_list)
+	# print model.get_params(deep=True)
+	# sample = model.sample()
+	# print [convert_to_letter(n) for n in sample[0]]
+
+ 
+
+def convert_to_letter(num):
+		if num <= 50:
+			return 'A'
+		elif num <= 150:
+			return 'C'
+		elif num <= 250:
+			return 'G'
+		elif num <= 350:
+			return 'T'
+		else:
+			return '\''
+
 
 def convert_letter(char):
 	base_values = {
@@ -143,6 +172,13 @@ def convert_letter(char):
 	'T' : 300, 
 	'\'' : 400
 	}
+	# base_values = {
+	# 'A' : 0,
+	# 'C' : 0.25,
+	# 'G' : 0.5,
+	# 'T' : 0.75, 
+	# '\'' : 1
+	# }
 
 	return base_values[char]
 
@@ -173,6 +209,7 @@ def read_gmm(read):
 	print np.round(model.means_, 2)
 	
 	print model.predict([read_list])
+
 
 
 
@@ -312,7 +349,7 @@ def read_in_file():
 	read_file = open(read_file_name, 'r')
 	for line in read_file:
 		read_info = line.split()
-		new_read = Read(read_info[2], [read_info[2]], read_info[5], read_info[3], None, [read_info[1]], read_info[0], read_info[4] ) 
+		new_read = Read(read_info[2], [read_info[2]], read_info[5], read_info[3], None, [read_info[1]], read_info[0], read_info[1], read_info[4] ) 
 		reads.append(new_read)
 	read_file.close()
 
