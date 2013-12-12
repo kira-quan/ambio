@@ -5,7 +5,7 @@
 
 from __future__ import division
 from scipy import stats
-from read import Read
+from read import Read, Alignment
 from numpy import arange
 from sklearn import mixture # Version 0.14.1
 import timeit
@@ -29,8 +29,13 @@ def ambio():
 	# For each read, generate the position assignment
 	for read in reads:
 		# TODO: Look at GMM and add in the bumps from the email
-		read = find_position(read)
-		read.print_read()
+		if len(read.get_alignments()) > 1:
+			read = find_position(read)
+			read.print_read()
+		else:
+			# There is only one alignment possibility
+			read.set_alignment_probability(0, 1)
+			read.print_read()
 		
 	return 0
 
@@ -153,14 +158,76 @@ def read_in_file():
 	read_file = open(read_file_name, 'r')
 	for line in read_file:
 		read_info = line.split()
-		new_read = Read(read_info[2], [read_info[2]], read_info[5], read_info[3], None, [read_info[1]], read_info[0], read_info[4] ) 
+		read_string = read_info[2].replace('\'', '')
+		new_read = Read(read_string, [], read_info[5], read_info[3], None, [], read_info[0], read_info[1], read_info[4]) 
 		reads.append(new_read)
+	read_file.close()
 
 	# Repeat regions file in the second argument
 	repeat_file_name = arguments[2]
 
+	# Process repeat file
+	repeat_file = open(repeat_file_name, 'r')
+	alignments = [[]]
+	alignment_index = -1
+	previous_line = ''
+
+
+	for line in repeat_file:
+		alignment_info = line.split()
+
+		# This consists of a tuple of alignment string, alignment start position and alignment chromosome
+		#new_align = alignment_info[2], alignment_info[4], alignment_info[3]
+
+		new_align = Alignment(alignment_info[2], None, alignment_info[4], alignment_info[3])
+
+		if previous_line != alignment_info[0]:
+			# It is not a repeat
+			alignment_index = alignment_index + 1
+			alignments.append([])
+			previous_line = alignment_info[0]
+
+		alignments[alignment_index].append(new_align)
+
+	repeat_file.close()
+
+	# Associate each read with the other alignments
+	for read in reads:
+		# Find the other alignments
+		pos = read.get_position()
+		found = False
+		found_index = -1
+
+		for a_index, alignment_lists in enumerate(alignments):
+			# find matching alignments
+			# TODO: Don't add alignment already have
+			# TODO: Make functional with filter
+			for align in alignment_lists:
+				if align.get_position() == pos:
+					found = True
+					found_index = a_index
+					break
+
+			if found is True:
+				break
+
+		if found is True:
+			print '\n'
+			print len(alignments[found_index])
+			for new_align in alignments[found_index]:
+				read.add_alignment(new_align)
+				print new_align.get_position()
+			
+			read.print_read()
+
+
 	# SNP files are the remaining ones
 	snp_file_names = [arguments[file_id] for file_id in range(3, arguments_length) ]
+
+	# Process SNP files
+	for file_name in snp_file_names:
+		snp_file = open(file_name, 'r')
+		snp_file.close()
 
 if __name__ == '__main__':
 	read_in_file()

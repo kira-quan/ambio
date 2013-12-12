@@ -6,28 +6,41 @@
 from __future__ import division
 from numpy import nextafter
 
-# class Alignment:
-# 	def __init__(self, alignment_sequence, alignment_quality_score, allele_frequencies, position):
-# 		self.alignment = alignment_sequence
-# 		self.quality_score = alignment_quality_score
-# 		self.probability_score = -1
-# 		self.allele_frequencies = []
-# 		self.position = position
-# 		self.allele_frequencies.append(base)
-# 		for call_index, call in enumerate(base):
-# 			if call is 0:
-# 				# Don't want probabilities to be zero for other options
-# 				self.allele_frequencies[base_index][call_index] = nextafter(call, 1)
+class Alignment:
+	def __init__(self, alignment_sequence, allele_frequencies=None, position=None, chromosome=None, alignment_quality_score=0):
+		self.alignment = alignment_sequence
+		self.quality_score = alignment_quality_score
+		self.probability_score = -1
+		self.chromosome = chromosome
+		
+		self.position = position
+		if allele_frequencies is not None: 
+			# TODO: Fix this
+			self.allele_frequencies = []
+			self.allele_frequencies.append(base)
+			for call_index, call in enumerate(base):
+				if call is 0:
+					# Don't want probabilities to be zero for other options
+					self.allele_frequencies[base_index][call_index] = nextafter(call, 1)
 
-# 	def get_allele_frequencies(self, base_index):
-# 		"""
-# 		Return the entry in the allele frequencies list at the given base index
-# 		"""
-# 		return self.allele_frequencies[base_index]
+	def get_allele_frequencies(self, base_index):
+		"""
+		Return the entry in the allele frequencies list at the given base index
+		"""
+		return self.allele_frequencies[base_index]
+
+	def get_sequence(self):
+		return self.alignment
+
+	def get_position(self):
+		return self.position
+
+	def get_chromosome(self):
+		return self.chromosome
 
 
 class Read:
-	def __init__(self, read, alignments, mapq, bases_quality_score, allele_frequencies, alignment_positions=None, original_chromosome=None, cigar='50M'):
+	def __init__(self, read, alignments, mapq, bases_quality_score, allele_frequencies, alignment_positions=None, original_chromosome=None, original_position=None, cigar='50M'):
 		# the read
 		self.read = read
 		# a list of the possible alignments for a read
@@ -42,7 +55,7 @@ class Read:
 
 		self.bases_quality_score = self.convert_to_phred(bases_quality_score)
 		# the best position for the read, where the position refers to the alignment index
-		self.position = 0
+		self.position = original_position
 		# a list of generate probability score for each alignment
 		self.alignment_probability_scores = [-1 for a in alignments]
 		# alternative base calls
@@ -67,6 +80,13 @@ class Read:
 			self.allele_frequencies = None
 		# bases
 		self.base_opts = ['A', 'C', 'G', 'T']
+
+	def add_alignment(self, alignment):
+		self.alignments.append(alignment.get_sequence())
+		self.alignment_probability_scores.append(-1)
+		self.alignment_positions.append(alignment.get_position())
+
+		# to do add in allele frequencies
 
 	def find_alternative_alignments(self):
 		"""
