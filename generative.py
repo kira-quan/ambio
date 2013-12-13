@@ -63,6 +63,12 @@ def mult_reads_gmm(reads, training_reads, components):
 	"""
 	Gaussian Mixture Model for multiple read
 	"""
+
+	prediction_zero_100 = 0
+	prediction_one_100 = 0
+	prediction_zero_200 = 0
+	prediction_one_200 = 0
+
 	base_opts = ['A', 'C', 'G', 'T']
 
 
@@ -110,22 +116,47 @@ def mult_reads_gmm(reads, training_reads, components):
 	for index, prediction in enumerate(predictions):
 		mapping = [prediction, reads[index]]
 		read_predictions.append(mapping)
+	
 
 	for read_pr in read_predictions:
+		
 		prediction = read_pr[0]
-		def filt(x): return x[0] == prediction
-		matches = filter(filt, read_predictions)
-		print '\n'
-		print prediction
-		print 'Converted Means: '
-		print ''.join(converted_means[prediction])
-		print 'Actual Read'
-		print read_pr[1].get_read()
-		print read_pr[1].get_position()
+		# def filt(x): return x[0] == prediction
+		# matches = filter(filt, read_predictions)
+		pr = prediction
+		rps = int(float(read_pr[1].get_position()))
+		# print '\n'
+		# print prediction
+		# print 'Converted Means: '
+		# print ''.join(converted_means[prediction])
+		# print 'Actual Read'
+		# print read_pr[1].get_read()
+		# print read_pr[1].get_position()
 		# print 'Matches'
 		# for m in matches:
 		# 	print m[1].get_read() + ' Position: ' + m[1].get_position()
 		# 	m[1].print_read()
+
+		if pr == 0:
+			if rps == 100:
+				prediction_zero_100 = prediction_zero_100 + 1
+				
+			else:
+				prediction_zero_200 = prediction_zero_200 + 1
+				
+		else:
+			if rps == 100:
+				prediction_one_100 = prediction_one_100 + 1
+				
+			else:
+				prediction_one_200 = prediction_one_200 + 1
+				
+
+	print '\n-------------Predictions---------------------'
+	print 'Prediction: 0 Position: 100 Num: ' + str(prediction_zero_100)
+	print 'Prediction: 1 Position: 100 Num: ' + str(prediction_one_100)
+	print 'Prediction: 0 Position: 200 Num: ' + str(prediction_zero_200)
+	print 'Prediction: 1 Position: 200 Num: ' + str(prediction_one_200)
 
 	print '\n------Means: -----------'
 	for mean in converted_means:
@@ -527,10 +558,23 @@ def combine_reads(filtered_reads, positions):
 	
 	return (combined_reads, true_reads)
 
-def create_training_set(reads, positions, num_reads):
+def create_training_set(reads, positions, snps, num_reads):
 	training_reads = []
 	num_given = len(reads)
 	base_opts = ['A', 'C', 'G', 'T']
+
+	read_snps = []
+	for r_ind, r in enumerate(reads):
+		alignment_snps = snps[r_ind]
+
+		# Determine where the SNPs are
+		known_snps = []
+
+		for index, base in enumerate(alignment_snps):
+			if base[0] != -1:
+				known_snps.append([index, base])
+
+		read_snps.append(known_snps)
 
 
 	for t in range(0, num_reads):
@@ -541,9 +585,31 @@ def create_training_set(reads, positions, num_reads):
 		test_alignment = reads[r]
 		test_position = positions[r]
 		generated_template = list(test_alignment)
+		align_snp = read_snps[r]
+		snp_length = len(align_snp)
+
+		# Randomly choose known snps to implement
+		if snp_length > 1:
+			num_snps = randint(0, snp_length-1)
+
+			for s in range(num_snps):
+				# choose index to mutate
+				ind = randint(0, snp_length-1)
+				base_ind = randint(0,3)
+
+				# get which index is non zero
+				call_ind = align_snp[ind][0]
+				base_snp = align_snp[ind][1]
+
+				while base_snp[base_ind] is 0:
+					base_ind = (base_ind + 1) % 4
+				
+
+				generated_template[call_ind] = base_opts[base_ind] 
+
 
 		# Choose number of mutation
-		num_mutations = randint(0,10)
+		num_mutations = randint(0,5)
 
 		for mutation in range(0,num_mutations):
 			# choose index to mutate
@@ -562,28 +628,26 @@ def create_training_set(reads, positions, num_reads):
 
 if __name__ == '__main__':
 	reads = read_in_file()
-	print 'Start Filter'
-	reads = filter_reads(reads, [49937899, 22382490, 100790155])
-	print len(reads)
-	print 'End Filter'
-	returned_combined = combine_reads(reads, [49937899, 22382490, 100790155])
+
+	#reads = filter_reads(reads, [49937899, 22382490, 100790155])
+	reads = filter_reads(reads, [100, 200])
+	
+	#returned_combined = combine_reads(reads, [49937899, 22382490, 100790155])
+	returned_combined = combine_reads(reads, [100, 200])
 	reads = returned_combined[0]
 	true_reads = returned_combined[1]
 
 	templates = true_reads[0].get_alignments()
 	template_positions = true_reads[0].get_alignment_positions()
+	template_snps = true_reads[0].get_all_alignment_alleles()
 
 	print '------------Templates----------------'
 	print templates
 
-	training_reads = create_training_set(templates, template_positions, 1000)
-	
+	for test in range(0, 10):	
+		# Create a new set of training reads
+		training_reads = create_training_set(templates, template_positions, template_snps, 1000)
 
-	ambio(true_reads, training_reads, 3)
-
-
-
-
-
-
+		# Run the program
+		ambio(true_reads, training_reads, 2)
 

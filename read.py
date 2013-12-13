@@ -141,6 +141,12 @@ class Read:
 		print 'Alleles are: '
 		print self.allele_frequencies[alignment_index]
 
+	def get_alignment_alleles(self, alignment_index):
+		return self.allele_frequencies[alignment_index]
+
+	def get_all_alignment_alleles(self):
+		return self.allele_frequencies
+
 
 	def add_snp(self, alignment_index, base_index, base_calls):
 		for call_index, call in enumerate(base_calls):
