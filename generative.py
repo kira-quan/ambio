@@ -65,7 +65,7 @@ def mult_reads_gmm(reads):
 	base_opts = ['A', 'C', 'G', 'T']
 
 
-	model = mixture.GMM(n_components=91, covariance_type='full')
+	model = mixture.GMM(n_components=103, covariance_type='spherical')
 	num_reads = len(reads)
 
 	# Train on 10% of the reads
@@ -125,6 +125,7 @@ def mult_reads_gmm(reads):
 		def filt(x): return x[0] == prediction
 		matches = filter(filt, read_predictions)
 		print prediction
+		print converted_means[prediction]
 		print read_pr[1].get_read()
 		print read_pr[1].get_position()
 		print 'Matches'

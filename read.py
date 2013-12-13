@@ -56,6 +56,7 @@ class Read:
 		self.bases_quality_score = self.convert_to_phred(bases_quality_score)
 		# the best position for the read, where the position refers to the alignment index
 		self.position = original_position
+		self.new_position = original_position
 		# a list of generate probability score for each alignment
 		self.alignment_probability_scores = [-1 for a in alignments]
 		# alternative base calls
@@ -77,7 +78,7 @@ class Read:
 							# Don't want probabilities to be zero for other options
 							self.allele_frequencies[align_index][base_index][call_index] = nextafter(call, 1)
 		else:
-			self.allele_frequencies = None
+			self.allele_frequencies = []
 		# bases
 		self.base_opts = ['A', 'C', 'G', 'T']
 
@@ -87,6 +88,8 @@ class Read:
 		self.alignment_positions.append(alignment.get_position())
 
 		# to do add in allele frequencies
+		allele_freq = [[-1, -1, -1, -1] for f in range(0, 50)] 
+		self.allele_frequencies.append(allele_freq)
 
 	def find_alternative_alignments(self):
 		"""
@@ -112,8 +115,9 @@ class Read:
 		print "Alignments are: "
 		for alignment_index, alignment in enumerate(self.alignments):
 			print alignment
-			print "Score: " + str(self.alignment_probability_scores[alignment_index])
+			print "Score: " + str(self.alignment_probability_scores[alignment_index]) + " Position: " + str(self.alignment_positions[alignment_index])
 		print "Position is: " + str(self.position)
+		print "New Position is: " + str(self.new_position)
 
 	def print_all_read_info(self):
 		print '\n----------------------------------------------\n'
@@ -129,11 +133,27 @@ class Read:
 		print 'Phred: ' 
 		print self.bases_quality_score
 
+	def print_allele_frequencies(self, alignment_index):
+		print '\n---------------------------------'
+		print 'Read is: ' + self.read
+		print 'Self position is: ' + self.position
+		print 'Alignment is: ' + self.alignments[alignment_index] + ' at position: ' + str(self.alignment_positions[alignment_index])
+		print 'Alleles are: '
+		print self.allele_frequencies[alignment_index]
+
+
+	def add_snp(self, alignment_index, base_index, base_calls):
+		for call_index, call in enumerate(base_calls):
+			self.allele_frequencies[alignment_index][base_index][call_index] = call
+
 	def get_base_probs(self, index):
 		return self.base_call_possibilities[index]
 
 	def get_alignments(self):
 		return self.alignments
+
+	def get_alignment_positions(self):
+		return self.alignment_positions
 
 	def get_alignment_quality_score(self, alignment_index):
 		return self.alignment_quality_scores[alignment_index]
@@ -143,6 +163,9 @@ class Read:
 
 	def get_position(self):
 		return self. position
+
+	def set_new_position(self, new_position):
+		self.new_position = new_position
 
 	def set_position(self, new_position):
 		self.position = new_position
@@ -163,32 +186,45 @@ class Read:
 		else:
 			self.alignment_probability_scores[alignment_index] = current_score * new_prob 
 
-	def update_alignment_probability_with_list(self, base_index, likelihoods, weight):
+	def update_alignment_probabilities(self, base_index, transition_weight):
 		"""
 		For the given index and likelihood list, updates each alignment with the probability and 
 		the given weight for allele_frequencies
 		"""
+		transversion = transition_weight / 2
+		transitions = {
+			'A' : [-1, transversion, transition_weight, transversion],
+			'C' : [transversion, -1, transversion, transition_weight],
+			'G' : [transition_weight, transversion, -1, transversion],
+			'T' : [transversion, transition_weight, transversion, -1],
+			'N'	: [1, 1, 1, 1]
+		}
+		phred = self.bases_quality_score[base_index]
 		base_opts = self.base_opts
+		read_call = self.read[base_index]
+		read_base_index = base_opts.index(read_call)
+
 		for align_index, alignment in enumerate(self.alignments):
-			# Find probability associated with the base call in that alignment
-			
-			alignment_base_index = base_opts.index(alignment[base_index])
 
-			# Include alignment allele frequency
-			if self.allele_frequencies is not None:
-				base_allele_frequency = self.allele_frequencies[align_index][base_index][alignment_base_index]
+			alignment_call = alignment[base_index]
+			alignment_snp = self.allele_frequencies[align_index][base_index][read_base_index]
+			alignment_base_index = base_opts.index(alignment_call)
+			score = 0
+
+			# Determine if the alignment is a match or not
+			if read_call == alignment_call:
+				score = 1
+
+			# Determine if the read call is a known allele
+			elif alignment_snp == 1:
+				score = 1
+
+			# Calculate how likely it is to be an unknown snp from the likelihoods
 			else:
-				base_allele_frequency = 1
+				prob_transitions = transitions[alignment_call]
+				score = phred * prob_transitions[read_base_index]
 
-			read_base = self.read[base_index]
-
-			# Don't penalize for unknown SNP if phred score is high
-			if self.get_base_quality_score(base_index) > 0.95 and read_base != alignment[base_index] and base_allele_frequency is nextafter(0,1):
-				base_prob = likelihoods[alignment_base_index] 
-			else:
-				base_prob = likelihoods[alignment_base_index] * base_allele_frequency * weight
-
-			self.update_alignment_probability(align_index, base_prob)
+			self.update_alignment_probability(align_index, score)
 
 	def get_read(self):
 		return self.read
@@ -216,7 +252,7 @@ class Read:
 			# 		highest_score = score
 			# 		highest_index = index
 
-		self.set_position(highest_index)
+		self.set_new_position(self.alignment_positions[highest_index])
 	
 	def convert_to_phred(self, score):
 		"""

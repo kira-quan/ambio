@@ -13,95 +13,61 @@ import numpy as np
 import sys
 
 
-def ambio():
+def ambio(reads):
 	# VARIABLE DECLARATION
-	reads = [] # a list of the reads from the subject
+	# reads = [] # a list of the reads from the subject
 
-	# Read in the data passed into the program
-	#sample_read = Read("ATATCCCTACCAATCTATCCCCAAAAATTCCCTTATACTCTCTATCTAAT", ["ATATCCCTACCAATCTATCCCCAAAAATTCCCTTATACTCTCTATCTAAT", "ATATCCGTACCAATGTATCCCCAACAATTCCCTTATACTCTCTATCTAAT", "ATATCCGTACCAATCTATCCCCAACAATCCCCTTATACTCTCTATCTAAT", "ATATCGGTACCAATCTATCCCCAACAATTCCCTTATACTCTCTATCTAAT", "ATTTCCGTACCAATCTATCCCCAACAATTCCCTTATACTCTCTATCTAAT", "ATATCCGTACCAATCTATCCCCACCAATTCCCTTATACTCTCTATCTAAT", "ATATCCGTACCAATCTATCCCCAACAATTCCCTTATACTGTCTATCTAAT", "ATATCCGTACCAATCTATCCCCAACAATTCCCTTATACTCTCTATCTGAT"], [0.01, 0.01, 0.001, 0.1, 0.01, 0.1, 0.01, 0.1], 'CC@FFFFFHHGHGFH;EAEEIIIIFHIIFHGGIIIIHEIIGCGFIIHCAG')
+	# # Read in the data passed into the program
+	# #sample_read = Read("ATATCCCTACCAATCTATCCCCAAAAATTCCCTTATACTCTCTATCTAAT", ["ATATCCCTACCAATCTATCCCCAAAAATTCCCTTATACTCTCTATCTAAT", "ATATCCGTACCAATGTATCCCCAACAATTCCCTTATACTCTCTATCTAAT", "ATATCCGTACCAATCTATCCCCAACAATCCCCTTATACTCTCTATCTAAT", "ATATCGGTACCAATCTATCCCCAACAATTCCCTTATACTCTCTATCTAAT", "ATTTCCGTACCAATCTATCCCCAACAATTCCCTTATACTCTCTATCTAAT", "ATATCCGTACCAATCTATCCCCACCAATTCCCTTATACTCTCTATCTAAT", "ATATCCGTACCAATCTATCCCCAACAATTCCCTTATACTGTCTATCTAAT", "ATATCCGTACCAATCTATCCCCAACAATTCCCTTATACTCTCTATCTGAT"], [0.01, 0.01, 0.001, 0.1, 0.01, 0.1, 0.01, 0.1], 'CC@FFFFFHHGHGFH;EAEEIIIIFHIIFHGGIIIIHEIIGCGFIIHCAG')
 
-	alleles = [0.05, 0, 0, 0.95], [0, 0.5, 0, 0.5], [0, 0, 0, 1], [0.1, 0, 0.9, 0]
-	changed_alleles = [1, 0, 0, 0], [0, 0.5, 0, 0.5], [0, 0, 0, 1], [0.5, 0, 0.5, 0]
-	sample_read = Read("ACTG", ["ATCG", "ACAG", "TCTG", "ACTA", "ACTA", "ACTA", "ATCG", "ATTG"], [0.1, 0.02, 0.1, 0.9, 0.5, 0.3, 0.5], "CC@F", [alleles, alleles, alleles, changed_alleles, alleles, alleles, alleles, alleles])
+	# alleles = [0.05, 0, 0, 0.95], [0, 0.5, 0, 0.5], [0, 0, 0, 1], [0.1, 0, 0.9, 0]
+	# changed_alleles = [1, 0, 0, 0], [0, 0.5, 0, 0.5], [0, 0, 0, 1], [0.5, 0, 0.5, 0]
+	# sample_read = Read("ACTG", ["ATCG", "ACAG", "TCTG", "ACTA", "ACTA", "ACTA", "ATCG", "ATTG"], [0.1, 0.02, 0.1, 0.9, 0.5, 0.3, 0.5], "CC@F", [alleles, alleles, alleles, changed_alleles, alleles, alleles, alleles, alleles])
 
-	reads.append(sample_read)
+	# reads.append(sample_read)
 
 	# For each read, generate the position assignment
+	one_alignment = 0
+	no_alignments = 0
+	multiple_alignments = 0
+
 	for read in reads:
+		alignment_length = len(read.get_alignments())
 		# TODO: Look at GMM and add in the bumps from the email
-		if len(read.get_alignments()) > 1:
+		if alignment_length > 1:
+			print '\n'
 			read = find_position(read)
 			read.print_read()
+			print '\n'
+			multiple_alignments = multiple_alignments + 1
+
+		elif alignment_length ==0:
+			no_alignments = no_alignments + 1
+			# read.print_read()
+			# print '\n'
 		else:
 			# There is only one alignment possibility
-			read.set_alignment_probability(0, 1)
-			read.print_read()
-		
+			one_alignment = one_alignment + 1
+			# read.set_alignment_probability(0, 1)
+			# read.find_highest_position()
+			# read.print_read()
+	
+	print 'No Alignment: ' + str(no_alignments)
+	print 'One Alignment: ' + str(one_alignment)
+	print 'Multiple Alignments: ' + str(multiple_alignments)
+
 	return 0
 
-def find_position(read,t=1,a=1,p=1):
+def find_position(read):
 	"""
-	This finds the optimal position for the read based on a GMM that generates probable templates based on the
-	the read. From the generated reads, it finds the one with the
-	highest score and assigns that as the optimal position
-	t, a, and p are all weighting scores for transitions, allele frequencies, and phred scores respectively
+	This finds the optimal position for the read based on a scoring scheme
 	"""
 	# VARIABLE DECLARATION
 	read_main = read.get_read()
 
-	# the possibilites for a base, the four nucleotide bases, N for not enough information, R for
-	# the removal of a base +_ for the insertion of a base
-	base_opts = ['A', 'C', 'G', 'T']
-
-	# Transition probabilities A <-> G and C <-> T are twice as likely as any other conversion
-	# -1 denotes the index of the given base key
-	transitions = {
-		'A' : [-1, 0.333, 0.666, 0.333],
-		'C' : [0.333, -1, 0.333, 0.666],
-		'G' : [0.666, 0.333, -1, 0.333],
-		'T' : [0.333, 0.666, 0.333, -1],
-		'N'	: [1, 1, 1, 1]
-	}
-
-	# initialize with uniform probability for each option
-	init_base_opts_prob = [0.25 for b in base_opts]
-
 	for base_index, base in enumerate(read_main):
-		# calculate prior based on the quality score of the base and the quality score of the alignment
-		# there is a higher probability of the base in the read if the quality score of the base is high
-
-		# Calculate likelihood
-		# Phred quality scores
-		phred_score = read.get_base_quality_score(base_index)
-
-		# Allele frequencies
-		# Moved to the read class
-		# base_allele_freq = read.get_allele_frequencies(base_index)
-
-		likelihood = [0.25 for r in range(0,4)]
-		base_transition = transitions[base]
-
-		# keep likelihoods uniform if N
-		if base is not 'N':
-			base_choice = base_opts.index(base)
-			for index, l_prob in enumerate(likelihood):
-				if base_choice is index:
-					likelihood[index] = l_prob * (phred_score * p)
-				else:
-					# Transition versus Transversion added here
-					likelihood[index] = l_prob * ((1 - phred_score) * p) * (base_transition[index] * t)
-			
-		base_opts_prob = init_base_opts_prob[:]
-		
-		for index, base_prob in enumerate(base_opts_prob):
-			base_opts_prob[index] = base_prob * likelihood[index]
-
-		# Normalize base_opts_prob
-		prob_sum = sum(base_opts_prob)
-		final_base_opts_prob = [np.nextafter(prob/prob_sum, 1) for prob in base_opts_prob]
-
 		# Update alignment scores
-		read.update_alignment_probability_with_list(base_index, final_base_opts_prob, a)
+		read.update_alignment_probabilities(base_index, 0.6666)
 		
 	# Set the position for the read to the highest position
 	read.find_highest_position()
@@ -126,6 +92,7 @@ def find_generated_templates(alignments, generated_templates):
 
 	# Think about normalizing all the scores for the alignments
 	return template_scores
+
 def convert_to_phred(score):
 	"""
 	Converts Fastq phred scores into values
@@ -212,13 +179,9 @@ def read_in_file():
 				break
 
 		if found is True:
-			print '\n'
-			print len(alignments[found_index])
 			for new_align in alignments[found_index]:
 				read.add_alignment(new_align)
-				print new_align.get_position()
 			
-			read.print_read()
 
 
 	# SNP files are the remaining ones
@@ -227,17 +190,50 @@ def read_in_file():
 	# Process SNP files
 	for file_name in snp_file_names:
 		snp_file = open(file_name, 'r')
-		snp_file.close()
 
-	
+		for line in snp_file:
+			snp_info = line.split()
+			snps = snp_info[3].split('/')
+			snp_pos = int(float(snp_info[2]))
+
+			# Ignore alleles that are longer than one base
+
+			
+			if all(len(x) < 2 for x in snps):
+
+				# Iterate through reads and determine whether or not it contains this SNP
+				pos_low = snp_pos - 49
+			
+
+				for read in reads:
+					positions = read.get_alignment_positions()
+
+					for p_index, p in enumerate(positions):
+						p = int(float(p))
+						if p >= pos_low and p <= snp_pos:
+							# Get index of snp
+							offset = snp_pos - p
+							calls = [0, 0, 0, 0]
+							for snp in snps:
+								call_index = get_base_num(snp)
+								calls[call_index] = 1
+
+							# Add the SNP to the read
+							read.add_snp(p_index, offset, calls)
+							
+		snp_file.close()
+	return reads
+
+
+def get_base_num(letter):
+	base_opts = ['A', 'C', 'G', 'T']
+	return base_opts.index(letter)
+
 
 if __name__ == '__main__':
-	read_in_file()
+	reads = read_in_file()
+	ambio(reads)
 	#print timeit.timeit(ambio, number=1)
-
-
-
-
 
 
 
