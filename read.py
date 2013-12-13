@@ -270,3 +270,49 @@ class Read:
 			score_list.append(1 - pe_score)
 		
 		return score_list
+
+class GenerativeRead(Read):
+
+	fuse = False
+
+	def generate_random_alignments(self):
+		random_alignments = []
+		return random_alignments
+
+	def fuse_read(self, fuse_read, desired_start):
+		self.fuse = True
+		self_position = int(float(self.position))
+		fuse_position = int(float(fuse_read.position))
+		desired_start = int(float(desired_start))
+		read = fuse_read.get_read()
+
+		if self_position < fuse_position:
+			offset = desired_start - self_position
+			fuse_offset = fuse_position - desired_start
+			overlap = self_position + 50 - fuse_position
+			num_wanted = offset
+			start_fuse = overlap
+			end_fuse = start_fuse + num_wanted
+			new_strand = self.read[offset:]
+			new_strand += read[start_fuse:end_fuse]
+
+		else:
+			offset = desired_start - fuse_position
+			overlap = fuse_position + 50 - self_position
+			num_wanted = 50 - offset - overlap 
+			end = self_position - fuse_position 
+			start = end - num_wanted
+			end_read = desired_start + 50 - self_position
+			new_strand = read[start:end]
+			new_strand += self.read[:end_read]
+			
+		
+		self.read = new_strand
+		self.position = desired_start
+
+		return self.read
+
+		
+
+
+

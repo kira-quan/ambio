@@ -5,16 +5,17 @@
 
 from __future__ import division
 from scipy import stats
-from read import Read
-from numpy import arange
+from read import Read, GenerativeRead, Alignment
+from numpy import arange, array
 from random import randint
 from sklearn import mixture # Version 0.14.1
+from ambio import get_base_num
 import timeit
 import numpy as np
 import sys
 
 
-def ambio(reads):
+def ambio(reads, training_reads, components):
 	# VARIABLE DECLARATION
 	# """
 	# In genome changed index: 26 of base G to A
@@ -54,30 +55,23 @@ def ambio(reads):
 	# 	# read.print_read()
 	# 	read_gmm(read)
 
-	mult_reads_gmm(reads)
+	mult_reads_gmm(reads, training_reads, components)
 
 	return 0
 
-def mult_reads_gmm(reads):
+def mult_reads_gmm(reads, training_reads, components):
 	"""
 	Gaussian Mixture Model for multiple read
 	"""
 	base_opts = ['A', 'C', 'G', 'T']
 
 
-	model = mixture.GMM(n_components=103, covariance_type='spherical')
+	model = mixture.GMM(n_components=components, covariance_type='spherical')
 	num_reads = len(reads)
 
-	# Train on 10% of the reads
-	train_num = int(num_reads * 0.9)
-	
-	training_reads = []
+	training_reads = [read.get_read().replace('\'', '') for read in training_reads]
 
-	for train in range(0, train_num):
-		ind = randint(0, (num_reads-1))
-		training_reads.append(reads[ind].get_read())
-
-	read_input = [read.get_read() for read in reads]
+	read_input = [read.get_read().replace('\'', '') for read in reads]
 	# alignment_inputs = []
 	# alignment_inputs.extend(read.get_alignments())
 
@@ -89,7 +83,7 @@ def mult_reads_gmm(reads):
 		read_list.append(read_char)
 
 	observations = []
-	print training_reads
+	
 	for alignment in training_reads:
 		alignment_list = [convert_letter(c) for c in alignment] 
 		observations.append( alignment_list )
@@ -100,8 +94,7 @@ def mult_reads_gmm(reads):
 
 	# 	observations.append(base_observations)
 
-	#print model.fit(observations)
-	model.fit(read_list)
+	model.fit(observations)
 	means =  np.round(model.means_, 2)
 	covars = np.round(model.covars_, 2)
 	converted_means = []
@@ -124,13 +117,14 @@ def mult_reads_gmm(reads):
 		prediction = read_pr[0]
 		def filt(x): return x[0] == prediction
 		matches = filter(filt, read_predictions)
+		print '\n'
 		print prediction
 		print converted_means[prediction]
 		print read_pr[1].get_read()
 		print read_pr[1].get_position()
 		print 'Matches'
 		for m in matches:
-			print m[1].get_read() +  m[1].get_position()
+			print m[1].get_read() + ' Position: ' + m[1].get_position()
 
 	
 	# for index, prediction in enumerate(predictions):
@@ -162,7 +156,7 @@ def convert_to_letter(num):
 		elif num <= 350:
 			return 'T'
 		else:
-			return '\''
+			return 'N'
 
 
 def convert_letter(char):
@@ -171,7 +165,7 @@ def convert_letter(char):
 	'C' : 100,
 	'G' : 200,
 	'T' : 300, 
-	'\'' : 400
+	'N' : 400
 	}
 	# base_values = {
 	# 'A' : 0,
@@ -332,6 +326,7 @@ def convert_to_phred(score):
 		score_list.append(1 - pe_score)
 	
 	return score_list
+
 def read_in_file():
 	"""
 	Reads in the files passed in to the script
@@ -350,15 +345,194 @@ def read_in_file():
 	read_file = open(read_file_name, 'r')
 	for line in read_file:
 		read_info = line.split()
-		new_read = Read(read_info[2], [read_info[2]], read_info[5], read_info[3], None, [read_info[1]], read_info[0], read_info[1], read_info[4] ) 
+		read_string = read_info[2].replace('\'', '')
+		new_read = GenerativeRead(read_string, [], read_info[5], read_info[3], None, [], read_info[0], read_info[1], read_info[4]) 
 		reads.append(new_read)
 	read_file.close()
 
+	# Repeat regions file in the second argument
+	repeat_file_name = arguments[2]
+
+	# Process repeat file
+	repeat_file = open(repeat_file_name, 'r')
+	alignments = [[]]
+	alignment_index = -1
+	previous_line = ''
+
+
+	for line in repeat_file:
+		alignment_info = line.split()
+
+		# This consists of a tuple of alignment string, alignment start position and alignment chromosome
+		#new_align = alignment_info[2], alignment_info[4], alignment_info[3]
+
+		new_align = Alignment(alignment_info[2], None, alignment_info[4], alignment_info[3])
+
+		if previous_line != alignment_info[0]:
+			# It is not a repeat
+			alignment_index = alignment_index + 1
+			alignments.append([])
+			previous_line = alignment_info[0]
+
+		alignments[alignment_index].append(new_align)
+
+	repeat_file.close()
+
+	# Associate each read with the other alignments
+	for read in reads:
+		# Find the other alignments
+		pos = read.get_position()
+		found = False
+		found_index = -1
+
+		for a_index, alignment_lists in enumerate(alignments):
+			# find matching alignments
+			# TODO: Don't add alignment already have
+			# TODO: Make functional with filter
+			for align in alignment_lists:
+				if align.get_position() == pos:
+					found = True
+					found_index = a_index
+					break
+
+			if found is True:
+				break
+
+		if found is True:
+			for new_align in alignments[found_index]:
+				read.add_alignment(new_align)
+			
+
+
+	# SNP files are the remaining ones
+	snp_file_names = [arguments[file_id] for file_id in range(3, arguments_length) ]
+
+	# Process SNP files
+	for file_name in snp_file_names:
+		snp_file = open(file_name, 'r')
+
+		for line in snp_file:
+			snp_info = line.split()
+			snps = snp_info[3].split('/')
+			snp_pos = int(float(snp_info[2]))
+
+			# Ignore alleles that are longer than one base
+
+			
+			if all(len(x) < 2 for x in snps):
+
+				# Iterate through reads and determine whether or not it contains this SNP
+				pos_low = snp_pos - 49
+			
+
+				for read in reads:
+					positions = read.get_alignment_positions()
+
+					for p_index, p in enumerate(positions):
+						p = int(float(p))
+						if p >= pos_low and p <= snp_pos:
+							# Get index of snp
+							offset = snp_pos - p
+							calls = [0, 0, 0, 0]
+							for snp in snps:
+								call_index = get_base_num(snp)
+								calls[call_index] = 1
+
+							# Add the SNP to the read
+							read.add_snp(p_index, offset, calls)
+							
+		snp_file.close()
 	return reads
+
+def filter_reads(reads, positions):
+	"""
+	Returns only the reads that have an overlap of over half with the given positions
+	"""
+
+	filtered_reads = []
+	read_array = array(reads)
+
+	for position in positions:
+		low_position = position - 25
+		high_position = position + 25
+		p = []
+
+		for r in reads:
+			pos = int(float(r.get_position()))
+			if pos > low_position and pos < high_position:
+				p.append(r) 
+
+		filtered_reads.extend(p)
+
+	return filtered_reads
+
+def combine_reads(filtered_reads, positions):
+	"""
+	Combines reads so that they all have the desired start position
+	"""
+
+	combined_reads = []
+	true_reads = []
+
+	for r in filtered_reads:
+		# Find associated position
+		r_position = float(r.get_position())
+		desired_start = -1
+
+		for p in positions:
+			low_position = p - 25
+			high_position = p + 25
+			if r_position > low_position and r_position < high_position:
+				desired_start = p
+				break
+
+		if desired_start is not -1:
+			# Find another read that overlaps
+			if r_position < desired_start:
+				offset = desired_start - r_position
+				for r2 in filtered_reads:
+					r2_position = float(r2.get_position())
+					if r2_position > desired_start and r2_position <= desired_start + offset and r2_position != r_position:
+						fuse_read = r2
+						break
+			elif r_position == desired_start:
+				fuse_read = None
+			else:
+				offset = r_position - desired_start
+				for r2 in filtered_reads:
+					r2_position = float(r2.get_position())
+					r2_end = r2_position + 49
+					if r2_end + 49 > desired_start and r2_end >= r_position - 1 and r2_position != r_position:
+						fuse_read = r2 
+						break
+
+			if fuse_read is None:
+				if r_position == desired_start:
+					true_reads.append(r)
+			else:
+				r.fuse_read(fuse_read, desired_start)
+				combined_reads.append(r)
+				
+
+	def f(x): return len(x.get_read()) == 50
+	combined_reads = filter(f, combined_reads)
+
+	# for c in combined_reads:
+	# 	c.print_read()
+	# 	print '\n'
+	
+	return (combined_reads, true_reads)
 
 if __name__ == '__main__':
 	reads = read_in_file()
-	ambio(reads)
+	print 'Start Filter'
+	reads = filter_reads(reads, [49937899, 22382490, 100790155])
+	print len(reads)
+	print 'End Filter'
+	returned_combined = combine_reads(reads, [49937899, 22382490, 100790155])
+	reads = returned_combined[0]
+	true_reads = returned_combined[1]
+	ambio(true_reads, reads, 3)
 
 
 
