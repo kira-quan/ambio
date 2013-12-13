@@ -213,16 +213,20 @@ class Read:
 
 			# Determine if the alignment is a match or not
 			if read_call == alignment_call:
-				score = 1
+				#score = 1
+				score = phred
 
 			# Determine if the read call is a known allele
 			elif alignment_snp == 1:
-				score = 1
+				#score = 1
+				score = phred
 
 			# Calculate how likely it is to be an unknown snp from the likelihoods
+			# plus the likelihood that it is the wrong base call and was actually supposed to match
+			# 1/3 -> equal probability for a different base call
 			else:
-				prob_transitions = transitions[alignment_call]
-				score = phred * prob_transitions[read_base_index]
+				prob_transitions_alignment = transitions[alignment_call]
+				score = phred * prob_transitions_alignment[read_base_index] + ((1 - phred) * (1/3))
 
 			self.update_alignment_probability(align_index, score)
 
