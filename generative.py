@@ -102,8 +102,6 @@ def mult_reads_gmm(reads, training_reads, components):
 		# convert to nearest acceptable letter
 		#char_means = [chr(int(n)) for n in num_list]
 		char_means = [convert_to_letter(n) for n in num_list]
-
-			
 		converted_means.append(char_means)
 	
 	predictions = model.predict(read_list)
@@ -119,14 +117,20 @@ def mult_reads_gmm(reads, training_reads, components):
 		matches = filter(filt, read_predictions)
 		print '\n'
 		print prediction
-		print converted_means[prediction]
+		print 'Converted Means: '
+		print ''.join(converted_means[prediction])
+		print 'Actual Read'
 		print read_pr[1].get_read()
 		print read_pr[1].get_position()
-		print 'Matches'
-		for m in matches:
-			print m[1].get_read() + ' Position: ' + m[1].get_position()
+		# print 'Matches'
+		# for m in matches:
+		# 	print m[1].get_read() + ' Position: ' + m[1].get_position()
+		# 	m[1].print_read()
 
-	
+	print '\n------Means: -----------'
+	for mean in converted_means:
+		print ''.join(mean) 
+
 	# for index, prediction in enumerate(predictions):
 	# 	print 'Read: '
 	# 	print reads[index].get_read()
@@ -523,6 +527,39 @@ def combine_reads(filtered_reads, positions):
 	
 	return (combined_reads, true_reads)
 
+def create_training_set(reads, positions, num_reads):
+	training_reads = []
+	num_given = len(reads)
+	base_opts = ['A', 'C', 'G', 'T']
+
+
+	for t in range(0, num_reads):
+		# Randomly choose a read
+		r = randint(0,num_given-1)
+
+		# Get alignment
+		test_alignment = reads[r]
+		test_position = positions[r]
+		generated_template = list(test_alignment)
+
+		# Choose number of mutation
+		num_mutations = randint(0,10)
+
+		for mutation in range(0,num_mutations):
+			# choose index to mutate
+			ind = randint(0,49)
+			base_ind = randint(0,3)
+			generated_template[ind] = base_opts[base_ind]
+
+		generated_string = ''.join(generated_template) 
+
+		# Create New Read
+		test_read = GenerativeRead(generated_string, [test_alignment], [], [], [], [test_position], [], test_position)
+		training_reads.append(test_read)
+
+
+	return training_reads 
+
 if __name__ == '__main__':
 	reads = read_in_file()
 	print 'Start Filter'
@@ -532,7 +569,17 @@ if __name__ == '__main__':
 	returned_combined = combine_reads(reads, [49937899, 22382490, 100790155])
 	reads = returned_combined[0]
 	true_reads = returned_combined[1]
-	ambio(true_reads, reads, 3)
+
+	templates = true_reads[0].get_alignments()
+	template_positions = true_reads[0].get_alignment_positions()
+
+	print '------------Templates----------------'
+	print templates
+
+	training_reads = create_training_set(templates, template_positions, 1000)
+	
+
+	ambio(true_reads, training_reads, 3)
 
 
 
